@@ -1,279 +1,262 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>静谧日记</title>
+    <title>Simple Diary</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <div class="container">
-        <!-- 页面头部 -->
+    <div id="app-container">
         <header>
             <div class="header-content">
-                <div id="header-avatar-display" class="avatar-display"></div>
-                <h2>静谧日记</h2>
+                <div id="profile-btn" class="profile-summary">
+                    <div id="header-avatar-display" class="avatar small-avatar"></div>
+                    <span class="username">...</span>
+                </div>
+                <div class="actions">
+                    <button id="toggle-3d-view-btn" class="icon-btn" title="3D日记本">
+                        <svg viewBox="0 0 24 24"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5C5.33 4.5 4.11 4.65 3 5V19c1.11.35 2.33.5 3.5.5 1.95 0 4.05-.4 5.5-1.5 1.45 1.1 3.55 1.5 5.5 1.5 1.17 0 2.39-.15 3.5-.5V5zM12 16.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    </button>
+                    <button id="settings-btn" class="icon-btn" title="设置">
+                        <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                    </button>
+                </div>
             </div>
-            <div class="header-actions">
-                <button id="profile-btn" class="icon-btn" title="个人资料">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="搜索日记内容或标签...">
+                <button id="clear-search-btn" class="icon-btn hidden" title="清空">
+                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                 </button>
-                <button id="toggle-3d-view-btn" class="icon-btn" title="3D日记本视图">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5C5.33 4.5 4.11 4.65 3 5V19c1.11.35 2.33.5 3.5.5 1.95 0 4.05-.4 5.5-1.5 1.45 1.1 3.55 1.5 5.5 1.5 1.17 0 2.39-.15 3.5-.5V5zM12 18.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
-                </button>
-                <button id="settings-btn" class="icon-btn" title="设置">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.08-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
-                </button>
-                <button id="open-entry-form-btn" class="write-btn">写新日记</button>
             </div>
         </header>
 
-        <!-- 搜索栏 -->
-        <div class="search-bar">
-            <input type="text" id="search-input" placeholder="搜索日记内容或标签...">
-            <button id="clear-search-btn" class="icon-btn hidden" title="清空搜索">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
-        </div>
-
-        <!-- 日记流 -->
         <main id="diary-thread"></main>
-    </div>
 
-    <!-- 3D 日记本视图 -->
-    <div id="diary-book-3d" class="hidden">
-        <div class="book">
-            <div class="book-cover">
-                <div class="book-cover-front">
-                    <h1>静谧日记</h1>
-                    <p>你的 Gedanken</p>
+        <div id="diary-book-3d" class="hidden">
+            <div class="book-container">
+                <div class="book">
+                    <div class="book-cover">
+                        <div class="front-cover">
+                            <h1>说几句</h1>
+                            <p>My Secret Diary</p>
+                        </div>
+                        <div class="back-cover"></div>
+                    </div>
+                    <div class="book-pages">
+                        <div class="pages-container"></div>
+                    </div>
                 </div>
-                <div class="book-cover-back"></div>
             </div>
-            <div class="book-pages">
-                <div class="pages-container"></div>
-            </div>
-        </div>
-        <div class="book-nav">
-            <button id="close-book-btn" class="icon-btn" title="返回列表视图">&times;</button>
-            <div class="page-controls">
-                <button id="prev-page-btn" class="page-nav-btn">&larr;</button>
+            <div class="book-controls">
+                <button id="prev-page-btn" class="icon-btn">‹</button>
                 <span id="current-page">封面</span>
-                <button id="next-page-btn" class="page-nav-btn">&rarr;</button>
+                <button id="next-page-btn" class="icon-btn">›</button>
+                <button id="close-book-btn" class="icon-btn close-book" title="关闭">&times;</button>
             </div>
         </div>
-    </div>
 
+        <button id="open-entry-form-btn" class="fab">+</button>
+        <button id="scroll-to-top-btn" class="fab secondary-fab">↑</button>
 
-    <!-- 模态框区域 -->
-    
-    <!-- 日记编辑/新建表单 -->
-    <div id="entry-form-modal" class="modal-overlay">
-        <div class="modal-content">
-            <button id="close-entry-form-btn" class="close-btn">&times;</button>
-            <h3 id="entry-form-title">记录此刻的想法...</h3>
-            <textarea id="diary-textarea" placeholder="在这里写下你的故事..."></textarea>
-            <div id="tags-input-container" class="hidden">
-                <input type="text" id="entry-tags-input" class="control-input" placeholder="标签, 用逗号分隔">
-            </div>
-            <div class="modal-actions">
-                <button id="toggle-tags-input-btn" class="secondary-btn">标签</button>
-                <button id="save-entry-btn" class="primary-btn">发布</button>
-            </div>
-            <input type="hidden" id="editing-entry-id">
-        </div>
-    </div>
-    
-    <!-- 个人资料模态框 -->
-    <div id="profile-modal" class="modal-overlay">
-        <div class="modal-content profile-modal">
-            <button id="close-profile-btn" class="close-btn">&times;</button>
-            <div class="profile-header">
-                <div id="profile-display-avatar" class="profile-avatar"></div>
-                <div class="profile-info">
-                    <h3 id="profile-display-name">匿名用户</h3>
-                    <p id="profile-display-signature">这个人很神秘，什么也没说。</p>
+        <!-- Modals -->
+        <div id="entry-form-modal" class="modal-overlay">
+            <div class="modal-content large">
+                <h3 id="entry-form-title">记录此刻的想法...</h3>
+                <textarea id="diary-textarea" placeholder="今天发生了什么有趣的事..."></textarea>
+                <div id="tags-input-container" class="hidden">
+                    <input type="text" id="entry-tags-input" placeholder="标签, 用逗号分隔">
                 </div>
-                <button id="edit-profile-btn" class="icon-btn edit-profile-icon" title="编辑资料">
-                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                </button>
-            </div>
-            <div class="profile-stats">
-                <div><span id="total-entries">0</span><small>日记篇数</small></div>
-                <div><span id="total-words">0</span><small>累计字数</small></div>
-                <div><span id="latest-entry">-</span><small>最近更新</small></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 编辑个人资料模态框 -->
-    <div id="edit-profile-modal" class="modal-overlay">
-        <div class="modal-content">
-            <button id="cancel-edit-profile-btn" class="close-btn">&times;</button>
-            <h3>编辑个人资料</h3>
-            <div class="profile-edit-form">
-                <div id="profile-avatar-preview-area"></div>
-                <button id="profile-avatar-upload-trigger" class="secondary-btn">更换头像</button>
-                <input type="file" id="profile-avatar-file-input" accept="image/*" hidden>
-            </div>
-            <label for="profile-username-input">昵称</label>
-            <input type="text" id="profile-username-input" class="control-input" placeholder="你的昵称">
-            <label for="profile-signature-input">签名</label>
-            <textarea id="profile-signature-input" placeholder="写一句签名吧"></textarea>
-            <div class="modal-actions">
-                <button id="save-profile-btn" class="primary-btn">保存</button>
+                <div class="modal-actions">
+                    <button id="toggle-tags-input-btn" class="text-btn"># 添加标签</button>
+                    <div>
+                        <button id="close-entry-form-btn" class="btn secondary">取消</button>
+                        <button id="save-entry-btn" class="btn">发布</button>
+                    </div>
+                </div>
+                <input type="hidden" id="editing-entry-id">
             </div>
         </div>
-    </div>
 
-
-    <!-- 设置模态框 -->
-    <div id="settings-modal" class="modal-overlay">
-        <div class="modal-content settings-modal">
-            <button id="close-settings-btn" class="close-btn">&times;</button>
-            <div class="settings-layout">
-                <nav class="settings-nav">
-                    <h3>设置</h3>
-                    <ul id="settings-nav-list">
-                        <li class="active" data-target="settings-appearance">外观与字体</li>
-                        <li data-target="settings-general">常规</li>
-                        <li data-target="settings-data">数据管理</li>
-                    </ul>
-                </nav>
-                <main class="settings-content">
-                    
-                    <!-- [核心改造] 外观与字体设置 -->
-                    <div id="settings-appearance" class="settings-panel active">
-                        <h3>主题选择</h3>
-                        <div class="theme-grid">
-                            <div class="theme-option" data-theme="light"><div class="theme-preview light"></div><span>明亮</span></div>
-                            <div class="theme-option" data-theme="dark"><div class="theme-preview dark"></div><span>暗黑</span></div>
-                            <div class="theme-option" data-theme="sepia"><div class="theme-preview sepia"></div><span>护眼</span></div>
-                            <div class="theme-option" data-theme="retro"><div class="theme-preview retro"></div><span>复古</span></div>
+        <div id="profile-modal" class="modal-overlay">
+            <div class="modal-content">
+                <button id="close-profile-btn" class="modal-close-btn">&times;</button>
+                <div class="profile-card">
+                    <div id="profile-display-avatar" class="avatar large-avatar"></div>
+                    <h2 id="profile-display-name">...</h2>
+                    <p id="profile-display-signature">...</p>
+                    <div class="profile-stats">
+                        <div>
+                            <span id="total-entries">0</span>
+                            <label>日记篇数</label>
                         </div>
-                        
-                        <div class="font-control-group">
-                            <h4>主界面字体</h4>
-                            <div class="font-control-item">
-                                <label for="main-font-select">字体</label>
-                                <select id="main-font-select" class="control-input"></select>
-                            </div>
-                            <div class="font-control-item">
-                                <label for="main-font-size">字号</label>
-                                <input type="range" id="main-font-size" min="12" max="24" step="1" class="control-input">
-                                <span id="main-font-size-value" class="font-size-value">16px</span>
-                            </div>
+                        <div>
+                            <span id="total-words">0</span>
+                            <label>总字数</label>
                         </div>
-
-                        <div class="font-control-group">
-                            <h4>3D日记本字体</h4>
-                            <div class="font-control-item">
-                                <label for="book-font-select">字体</label>
-                                <select id="book-font-select" class="control-input"></select>
-                            </div>
-                            <div class="font-control-item">
-                                <label for="book-font-size">字号</label>
-                                <input type="range" id="book-font-size" min="14" max="28" step="1" class="control-input">
-                                <span id="book-font-size-value" class="font-size-value">18px</span>
-                            </div>
+                        <div>
+                            <span id="latest-entry">-</span>
+                            <label>最近更新</label>
                         </div>
                     </div>
+                    <button id="edit-profile-btn" class="btn">编辑资料</button>
+                </div>
+            </div>
+        </div>
 
-                    <!-- 常规设置 -->
-                    <div id="settings-general" class="settings-panel">
-                        <h3>时间显示格式</h3>
-                        <div class="radio-group">
-                            <label><input type="radio" name="timeFormat" value="relative" checked> 相对时间 (如: 5分钟前)</label>
-                            <label><input type="radio" name="timeFormat" value="short"> 精简时间 (如: 05-20 14:30)</label>
+        <div id="edit-profile-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h3>编辑个人资料</h3>
+                <div id="profile-avatar-upload-trigger" class="avatar-upload-area">
+                    <div id="profile-avatar-preview-area" class="avatar large-avatar"></div>
+                    <span>点击更换头像</span>
+                    <input type="file" id="profile-avatar-file-input" accept="image/*" class="hidden-file-input">
+                </div>
+                <div class="form-group">
+                    <label for="profile-username-input">昵称</label>
+                    <input type="text" id="profile-username-input">
+                </div>
+                <div class="form-group">
+                    <label for="profile-signature-input">个性签名</label>
+                    <textarea id="profile-signature-input"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button id="cancel-edit-profile-btn" class="btn secondary">取消</button>
+                    <button id="save-profile-btn" class="btn">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-modal" class="modal-overlay">
+            <div class="modal-content settings-layout">
+                <button id="close-settings-btn" class="modal-close-btn">&times;</button>
+                <div class="settings-nav">
+                    <h3>设置</h3>
+                    <ul id="settings-nav-list">
+                        <li class="active" data-target="appearance-panel">外观</li>
+                        <li data-target="content-panel">内容</li>
+                        <li data-target="data-panel">数据</li>
+                    </ul>
+                </div>
+                <div class="settings-content">
+                    <div id="appearance-panel" class="settings-panel active">
+                        <h4>主题</h4>
+                        <div class="theme-grid">
+                            <div class="theme-option" data-theme="light">
+                                <div class="theme-preview light"></div><span>明亮</span>
+                            </div>
+                            <div class="theme-option" data-theme="dark">
+                                <div class="theme-preview dark"></div><span>暗黑</span>
+                            </div>
+                             <div class="theme-option" data-theme="sepia">
+                                <div class="theme-preview sepia"></div><span>护眼</span>
+                            </div>
+                        </div>
+                        <hr>
+                        <h4>全局字体</h4>
+                        <div id="font-options-container" class="font-grid">
+                             <div class="font-option active" data-font-id="sans-serif">
+                                <div class="font-preview" style="font-family: 'Noto Sans SC', sans-serif;">Aa 你好</div>
+                                <span>思源黑体</span>
+                            </div>
+                            <div class="font-option" data-font-id="serif">
+                                <div class="font-preview" style="font-family: 'Noto Serif SC', serif;">Aa 你好</div>
+                                <span>思源宋体</span>
+                            </div>
+                        </div>
+                        <hr>
+                        <h4>3D日记本字体</h4>
+                        <div class="form-group">
+                            <label for="book-font-zh-name-input">中文字体别名 (可选)</label>
+                            <input type="text" id="book-font-zh-name-input" placeholder="如：站酷高端黑">
+                        </div>
+                        <div class="form-group">
+                            <label for="book-font-zh-url-input">中文字体链接 (.css)</label>
+                            <input type="url" id="book-font-zh-url-input" placeholder="https://...">
+                        </div>
+                        <div class="form-group">
+                            <label for="book-font-en-name-input">英文字体别名 (可选)</label>
+                            <input type="text" id="book-font-en-name-input" placeholder="如：ZSFT-hd">
+                        </div>
+                         <div class="form-group">
+                            <label for="book-font-en-url-input">英文字体链接 (.css / data:)</label>
+                            <input type="url" id="book-font-en-url-input" placeholder="https://... 或 data:text/css...">
+                        </div>
+                    </div>
+                    <div id="content-panel" class="settings-panel">
+                        <h4>时间格式</h4>
+                        <div class="form-group radio-group">
+                            <label><input type="radio" name="timeFormat" value="relative" checked> 相对时间 (5分钟前)</label>
+                            <label><input type="radio" name="timeFormat" value="short"> 精简时间 (12-25 14:30)</label>
                             <label><input type="radio" name="timeFormat" value="full"> 完整时间</label>
                         </div>
-                        <h3>日记排序</h3>
-                        <div class="radio-group">
+                        <h4>日记排序</h4>
+                        <div class="form-group radio-group">
                             <label><input type="radio" name="sortOrder" value="newest" checked> 最新在前</label>
                             <label><input type="radio" name="sortOrder" value="oldest"> 最旧在前</label>
                         </div>
                     </div>
-
-                    <!-- 数据管理 -->
-                    <div id="settings-data" class="settings-panel">
-                        <h3>自定义字体管理</h3>
-                        <div class="custom-font-adder">
+                    <div id="data-panel" class="settings-panel">
+                         <h4>自定义字体管理</h4>
+                         <div class="custom-font-adder">
                             <input type="text" id="custom-font-name-input" placeholder="字体别名 (可选)">
-                            <input type="text" id="custom-font-url-input" placeholder="字体CSS链接">
-                            <button id="add-custom-font-btn" class="secondary-btn">添加</button>
+                            <input type="url" id="custom-font-url-input" placeholder="字体 .css 链接">
+                            <button id="add-custom-font-btn" class="btn small-btn">添加</button>
                         </div>
                         <ul id="custom-font-list"></ul>
-                        
-                        <h3>数据操作</h3>
+                        <hr>
+                        <h4>数据管理</h4>
                         <div class="data-actions">
-                            <button id="export-data-btn" class="secondary-btn">导出数据</button>
-                            <button id="import-data-btn" class="secondary-btn">导入数据</button>
-                            <button id="clear-all-data-btn" class="danger-btn">清空所有数据</button>
-                            <input type="file" id="import-file-input" accept=".json" hidden>
+                            <button id="import-data-btn" class="btn secondary">导入数据</button>
+                            <input type="file" id="import-file-input" accept=".json" class="hidden-file-input">
+                            <button id="export-data-btn" class="btn secondary">导出数据</button>
+                            <button id="clear-all-data-btn" class="btn danger">清空所有数据</button>
                         </div>
                     </div>
-
-                </main>
-            </div>
-            <div class="modal-footer">
-                <button id="save-settings-btn" class="primary-btn">保存设置</button>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- 删除确认模态框 -->
-    <div id="confirmation-modal" class="modal-overlay">
-        <div class="modal-content small-modal">
-            <h3>确认删除</h3>
-            <p>确定要删除这篇日记吗？此操作无法撤销。</p>
-            <div class="modal-actions">
-                <button id="cancel-delete-btn" class="secondary-btn">取消</button>
-                <button id="confirm-delete-btn" class="danger-btn">删除</button>
+                </div>
+                 <div class="settings-footer">
+                    <button class="btn" id="save-settings-btn">保存设置</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- 清空数据确认模态框 -->
-    <div id="clear-data-modal" class="modal-overlay">
-        <div class="modal-content small-modal">
-            <h3>高风险操作！</h3>
-            <p>这将永久删除所有日记和设置。请输入 "DELETE" 以确认。</p>
-            <input type="text" id="clear-data-confirm-input" class="control-input" autocomplete="off">
-            <div class="modal-actions">
-                <button id="cancel-clear-data-btn" class="secondary-btn">取消</button>
-                <button id="confirm-clear-data-btn" class="danger-btn" disabled>确认清空</button>
+        <div id="confirmation-modal" class="modal-overlay">
+            <div class="modal-content small">
+                 <h3>确认操作</h3>
+                 <p>确定要删除这篇日记吗？此操作无法撤销。</p>
+                 <div class="modal-actions">
+                    <button id="cancel-delete-btn" class="btn secondary">取消</button>
+                    <button id="confirm-delete-btn" class="btn danger">确认删除</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- 欢迎模态框 -->
-    <div id="welcome-modal" class="modal-overlay">
-        <div class="modal-content">
-            <button id="close-welcome-btn" class="close-btn">&times;</button>
-            <h3>欢迎来到静谧日记</h3>
-            <p>这是一个完全运行在你浏览器中的本地日记应用。所有数据都安全地存储在你的设备上，不会上传到任何服务器。</p>
-            <p><strong>开始使用：</strong></p>
-            <ul>
-                <li>点击右上角的 "写新日记" 开始记录。</li>
-                <li>在 "设置" 中可以更换主题、字体，管理你的数据。</li>
-                <li>别忘了 "导出数据" 来备份你的珍贵记忆。</li>
-            </ul>
-            <div class="modal-actions">
-                <button id="close-welcome-btn" class="primary-btn">了解，开始使用</button>
+        <div id="clear-data-modal" class="modal-overlay">
+            <div class="modal-content small">
+                <h3>清空所有数据！</h3>
+                <p>这是一个非常危险的操作，将永久删除所有日记和设置。请输入 <kbd>DELETE</kbd> 以确认。</p>
+                <input type="text" id="clear-data-confirm-input" autocomplete="off">
+                 <div class="modal-actions">
+                    <button id="cancel-clear-data-btn" class="btn secondary">取消</button>
+                    <button id="confirm-clear-data-btn" class="btn danger" disabled>确认清空</button>
+                </div>
             </div>
         </div>
+        
+        <div id="welcome-modal" class="modal-overlay">
+             <div class="modal-content">
+                <h3>欢迎使用 说几句</h3>
+                <p>这是一款简洁、纯粹、数据完全存储在本地的日记应用。因此请务必关闭浏览器自动清除数据，定时备份，以防 数据丢失</p>
+                <p>你可以点击右下角的 <b>+</b> 按钮开始第一篇日记，或者点击右上角的头像和设置按钮进行个性化配置。</p>
+                <div class="modal-actions">
+                    <button id="close-welcome-btn" class="btn">开始使用</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast-container"></div>
     </div>
-
-    <!-- 提示消息容器 -->
-    <div id="toast-container"></div>
-    
-    <!-- 返回顶部按钮 -->
-    <button id="scroll-to-top-btn" title="返回顶部">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
-    </button>
-
     <script src="script.js"></script>
 </body>
 </html>
