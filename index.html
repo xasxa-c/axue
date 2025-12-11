@@ -193,8 +193,8 @@
                 </div>
                 <div class="settings-content-area">
                     <!-- 主题外观面板 -->
-                    <div id="panel-appearance" class="settings-panel active">
-                        <h3>主题色彩</h3>
+                    <div id="settings-appearance" class="settings-panel">
+    <h3>主题选择</h3>
                         <div class="settings-section">
                             <p class="section-desc">选择预设主题</p>
                             <div class="theme-grid">
@@ -205,9 +205,35 @@
                                 <div class="theme-option" data-theme="morandi-blue"><div class="theme-preview theme-preview-morandi-blue"></div><span>莫兰迪蓝</span></div>
                                 <div class="theme-option" data-theme="morandi-green"><div class="theme-preview theme-preview-morandi-green"></div><span>莫兰迪绿</span></div>
                                 <div class="theme-option" data-theme="morandi-grey"><div class="theme-preview theme-preview-morandi-grey"></div><span>莫兰迪灰</span></div>
-                            </div>
-                        </div>
-                    </div>
+                                </div>
+    
+    <!-- [核心改造] 新的字体控制区域 -->
+    <div class="font-control-group">
+        <h4>主界面字体</h4>
+        <div class="font-control-item">
+            <label for="main-font-select">字体</label>
+            <select id="main-font-select" class="control-input"></select>
+        </div>
+        <div class="font-control-item">
+            <label for="main-font-size">字号</label>
+            <input type="range" id="main-font-size" min="12" max="24" step="1" class="control-input">
+            <span id="main-font-size-value" class="font-size-value">16px</span>
+        </div>
+    </div>
+
+    <div class="font-control-group">
+        <h4>3D日记本字体</h4>
+        <div class="font-control-item">
+            <label for="book-font-select">字体</label>
+            <select id="book-font-select" class="control-input"></select>
+        </div>
+        <div class="font-control-item">
+            <label for="book-font-size">字号</label>
+            <input type="range" id="book-font-size" min="14" max="28" step="1" class="control-input">
+            <span id="book-font-size-value" class="font-size-value">18px</span>
+        </div>
+    </div>
+</div>
                     <!-- 字体设置面板 -->
                     <div id="panel-font" class="settings-panel">
                         <h3>字体设置</h3>
@@ -216,7 +242,7 @@
                             <div class="font-options" id="font-options-container">
                                 <div class="font-option" data-font="'Noto Sans SC', sans-serif" data-font-id="sans-serif"><div class="font-preview font-sans">Aa 你好</div><span>思源黑体</span><small>现代简洁</small></div>
                                 <div class="font-option" data-font="'Noto Serif SC', serif" data-font-id="serif"><div class="font-preview font-serif">Aa 你好</div><span>思源宋体</span><small>优雅古典</small></div>
-                                <div class="font-option" data-font="'ZCOOL KuaiLe', cursive" data-font-id="handwritten"><div class="font-preview font-handwritten">Aa 你好</div><span>站酷快乐体</span><small>活泼手写</small></div>
+                          
                             </div>
                         </div>
                         <!-- 新增：自定义字体区域 -->
