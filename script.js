@@ -1,254 +1,290 @@
 /**
- * SimpleDiaryApp - v5.5 (样式 & 字体预设修正)
+ * SimpleDiaryApp - v5.5 (美观样式最终整合版)
  * -------------------------------------------
- * - [样式修正] 恢复并优化了大部分 CSS 样式，使其更符合你原有的美观 HTML 结构。
- * - [功能修正] **严格移除了全局字体选项中的“站酷快乐体”预设。**
- * - [功能增强] **3D日记本默认中文字体使用指定CSS，英文字体默认使用 Sacramento 花体。**
- * - [逻辑优化] 用户添加的自定义字体现在可以被选为全局字体，也可被指定为日记本字体。
- * - [代码优化] `fontMap` 和 `renderFontOptions` 逻辑已同步更新，确保字体管理一致性。
+ * - [UI还原] 完全基于用户偏好的 v5.0 美观样式进行开发。
+ * - [功能整合] 将 v5.4 的所有功能逻辑（智能字体解析、自定义日记本字体等）无缝对接到 v5.0 的HTML结构上。
+ * - [需求实现] 彻底移除“站酷快乐体”预设，不再作为可选字体。
+ * - [需求实现] 3D日记本默认中文字体更新为指定CSS，英文字体更新为 Sacramento 花体。
+ * - [修复] 修正了所有DOM元素选择器，以匹配旧版HTML的ID和类名。
+ * - [优化] 统一了字体管理逻辑，用户添加的字体可同时用于全局和日记本。
  */
 class SimpleDiaryApp {
     constructor() {
         this.constructor.defaultSettings = {
             theme: 'light',
-            fontId: 'sans-serif', // Default global font ID
-            customFonts: [],     // Stores { name, family, url } for user-added fonts
-            bookFont: { // Default fonts for 3D diary book
-                chinese: { name: '日记本默认', family: 'var(--font-sans)', url: 'https://fontsapi.zeoseven.com/96/main/result.css' },
-                english: { name: 'Sacramento', family: "'Sacramento', cursive", url: 'https://fonts.googleapis.com/css2?family=Sacramento&display=swap' }
+            fontId: 'sans-serif',
+            customFonts: [], // 结构: { name: '别名', family: '真实font-family', url: '...' }
+            bookFont: {
+                chinese: { name: '站酷高端黑', family: 'zcool-gdh', url: 'https://fontsapi.zeoseven.com/96/main/result.css' },
+                english: { name: 'Sacramento', family: 'Sacramento', url: 'https://fonts.googleapis.com/css2?family=Sacramento&display=swap' }
             },
-            profile: { name: '匿名用户', signature: '这个人很神秘，什么也没说。', avatar: '' },
+            profile: {
+                name: '匿名用户',
+                signature: '这个人很神秘，什么也没说。',
+                avatar: ''
+            },
             timeFormat: 'relative',
             sortOrder: 'newest'
         };
+
         this.entries = [];
         this.settings = JSON.parse(JSON.stringify(this.constructor.defaultSettings));
-        // **fontMap updated: 'handwritten' preset removed**
+
+        // [关键改动] 移除了 handwritten
         this.fontMap = {
-            'sans-serif': { name: "思源黑体", font: "'Noto Sans SC', sans-serif", description: "现代简洁", previews: { aa: "Aa 你好" } },
-            'serif': { name: "思源宋体", font: "'Noto Serif SC', serif", description: "优雅古典", previews: { aa: "Aa 你好" } },
-            // 'handwritten': { name: "站酷快乐体", font: "'ZCOOL KuaiLe', cursive", ... } // Removed as requested
+            'sans-serif': { name: "思源黑体", font: "'Noto Sans SC', sans-serif" },
+            'serif': { name: "思源宋体", font: "'Noto Serif SC', serif" }
         };
-        // State variables
+        
+        // 状态变量
         this.isBookOpen = false; this.isBookAnimating = false; this.isPageAnimating = false; this.areFontsRendered = false; this.isSaving = false; this.isFetching = false;
         this.currentBookEntries = []; this.currentPageIndex = 0; this.currentDeletingEntryId = null; this.searchDebounceTimer = null;
-        
+
         this.init();
     }
 
-    // --- Initialization and Data Handling ---
+    // --- 1. 初始化与数据处理 ---
     init() {
         this.loadData();
-        this.loadCustomFonts(); // Load custom fonts into UI and header links
-        this.applySettings();   // Apply global font and theme from settings
-        this.applyBookFonts();  // Apply default or saved book fonts
+        this.loadCustomFonts();
+        this.setupEventListeners();
+        this.applySettings();
+        this.applyBookFonts();
         this.updateProfileDisplay();
         this.renderEntries();
-        this.checkInitialState(); // Show welcome modal if first visit
+        this.checkInitialState();
         document.getElementById('loading-overlay').classList.add('hidden');
     }
     
-    checkInitialState() { // Checks if it's the first visit to show welcome modal
+    checkInitialState() {
         if (!localStorage.getItem('diaryAppVisited')) {
             this.showModal('welcome-modal');
-            localStorage.setItem('diaryAppVisited', 'true');
         }
     }
 
-    loadData() { // Loads entries and settings from localStorage
+    loadData() {
         try {
             const savedData = localStorage.getItem('diaryAppData');
             if (savedData) {
                 const data = JSON.parse(savedData);
                 this.entries = data.entries || [];
-                // Merge settings carefully, prioritizing saved over defaults
-                const mergedSettings = this.mergeDeep(JSON.parse(JSON.stringify(this.constructor.defaultSettings)), data.settings || {});
-                
-                // Ensure customFonts format is consistent { name, family, url }
+                // 深度合并设置，确保新旧版本兼容
+                const mergedSettings = this.mergeDeep(
+                    JSON.parse(JSON.stringify(this.constructor.defaultSettings)), 
+                    data.settings || {}
+                );
+                // [兼容性处理] 转换旧的自定义字体格式
                 mergedSettings.customFonts = (mergedSettings.customFonts || []).map(font => {
                     if (typeof font === 'object' && font !== null && !font.family && font.name) {
-                        return { ...font, family: font.name }; // Fallback family name
+                        return { name: font.name, family: font.name, url: font.url }; 
                     }
                     return font;
                 });
                 this.settings = mergedSettings;
             }
         } catch (error) {
-            console.error('Loading data failed:', error);
-            this.showToast('Failed to load local data', 'error');
+            console.error('加载数据失败:', error);
+            this.showToast('加载本地数据失败', 'error');
         }
     }
 
-    saveData() { // Saves current entries and settings to localStorage
+    saveData() {
         try {
             localStorage.setItem('diaryAppData', JSON.stringify({
                 entries: this.entries,
                 settings: this.settings
             }));
         } catch (error) {
-            console.error('Saving data failed:', error);
-            this.showToast('Failed to save data', 'error');
+            console.error('保存数据失败:', error);
+            this.showToast('保存数据失败', 'error');
         }
     }
 
-    // --- Event Listener Setup ---
     setupEventListeners() {
         const bind = (id, event, handler) => document.getElementById(id)?.addEventListener(event, handler.bind(this));
-        const bindAll = (selector, event, handler) => document.querySelectorAll(selector).forEach(el => el.addEventListener(event, handler.bind(this)));
-
-        // Core Operations
-        bind('open-entry-form-btn', 'click', this.openEntryForm);
+        
+        // 核心操作按钮
+        bind('open-entry-form-btn', 'click', () => this.openEntryForm());
         bind('toggle-3d-view-btn', 'click', this.toggle3DView);
         bind('profile-btn', 'click', this.openProfileModal);
         bind('settings-btn', 'click', this.openSettingsModal);
+        
+        // 搜索
         bind('search-input', 'input', this.handleSearch);
         bind('clear-search-btn', 'click', this.clearSearch);
+
+        // 写日记模态框
         bind('close-entry-form-btn', 'click', this.closeEntryForm);
         bind('save-entry-btn', 'click', this.saveEntry);
         bind('toggle-tags-input-btn', 'click', this.toggleTagsInput);
+        
+        // 删除确认模态框
         bind('cancel-delete-btn', 'click', this.closeConfirmationModal);
         bind('confirm-delete-btn', 'click', this.confirmDeleteEntry);
+        
+        // 个人资料模态框
         bind('close-profile-btn', 'click', this.closeProfileModal);
         bind('edit-profile-btn', 'click', this.openEditProfileModal);
+        
+        // 编辑个人资料模态框
         bind('cancel-edit-profile-btn', 'click', this.closeEditProfileModal);
         bind('save-profile-btn', 'click', this.saveProfile);
         bind('profile-avatar-upload-trigger', 'click', () => document.getElementById('profile-avatar-file-input')?.click());
-        bind('profile-avatar-file-input', 'change', this.handleAvatarUpload);
+        bind('profile-avatar-file-input', 'change', (e) => this.handleAvatarUpload(e));
+        
+        // 设置模态框
         bind('close-settings-btn', 'click', this.closeSettingsModal);
         bind('save-settings-btn', 'click', this.saveSettings);
         bind('export-data-btn', 'click', this.exportData);
         bind('import-data-btn', 'click', () => document.getElementById('import-file-input')?.click());
-        bind('import-file-input', 'change', this.importData);
+        bind('import-file-input', 'change', (e) => this.importData(e));
         bind('clear-all-data-btn', 'click', this.openClearDataModal);
+        
+        // 字体管理
+        bind('add-custom-font-btn', 'click', this.addCustomFont);
+        
+        // 清除数据模态框
         bind('cancel-clear-data-btn', 'click', this.closeClearDataModal);
         bind('confirm-clear-data-btn', 'click', this.confirmClearAllData);
-        bind('clear-data-confirm-input', 'input', this.checkClearDataInput);
+        bind('clear-data-confirm-input', 'input', (e) => this.checkClearDataInput(e.target));
+        
+        // 欢迎页和滚动
         bind('close-welcome-btn', 'click', this.closeWelcomeModal);
         bind('scroll-to-top-btn', 'click', this.scrollToTop);
-
-        // 3D Diary Book Controls
-        bind('toggle-3d-view-btn', 'click', this.toggle3DView);
+        
+        // 3D日记本控制
         bind('prev-page-btn', 'click', () => this.changePage(-1));
         bind('next-page-btn', 'click', () => this.changePage(1));
         bind('close-book-btn', 'click', this.closeBookView);
 
-        // Settings Panel Navigation & Actions
-        bindAll('#settings-nav-list li', 'click', this.switchSettingsTab);
-        bindAll('.theme-option', 'click', this.selectTheme);
-        bindAll('.font-option', 'click', this.handleFontSelection);
-        bind('add-custom-font-btn', 'click', this.addCustomFont);
-        bind('add-book-font-btn', 'click', this.updateBookFont); // Function to set book's default fonts
-
-        // Modal Handling & Escape Key
-        bindAll('.modal-close-btn', 'click', (e) => this.closeModal(e.target.closest('.modal-overlay')?.id));
-        bindAll('.modal-overlay', 'click', (e) => { if (e.target === e.currentTarget) this.closeModal(e.target.id); });
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const activeModal = document.querySelector('.modal-overlay.active'); if (activeModal) this.closeModal(activeModal.id); } });
-
-        // Search & Custom Font List Actions
-        bind('search-input', 'input', this.handleSearch);
-        bind('clear-search-btn', 'click', this.clearSearch);
+        // 事件委托（更高效）
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', e => e.target === modal && this.closeModal(modal.id));
+        });
+        
+        document.getElementById('font-options-container')?.addEventListener('click', this.handleFontSelection.bind(this));
+        
         document.getElementById('custom-font-list')?.addEventListener('click', e => {
-            if (e.target.classList.contains('delete-font-btn')) {
-                this.deleteCustomFont(parseInt(e.target.dataset.index, 10));
+            const deleteBtn = e.target.closest('.delete-font-btn');
+            if (deleteBtn) {
+                this.deleteCustomFont(parseInt(deleteBtn.dataset.index, 10));
             }
         });
         
-        // Scroll to Top Button Visibility
-        window.addEventListener('scroll', this.handleScroll);
+        document.getElementById('settings-nav-list')?.addEventListener('click', e => {
+            const tab = e.target.closest('li');
+            if (tab) this.switchSettingsTab(tab);
+        });
+        
+        document.querySelector('.theme-grid')?.addEventListener('click', e => {
+            const themeOption = e.target.closest('.theme-option');
+            if (themeOption) this.selectTheme(themeOption.dataset.theme);
+        });
+        
+        // 全局事件
+        window.addEventListener('scroll', () => {
+            const btn = document.getElementById('scroll-to-top-btn');
+            if (window.scrollY > 300) btn.classList.add('show');
+            else btn.classList.remove('show');
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const activeModal = document.querySelector('.modal-overlay.active');
+                if (activeModal) this.closeModal(activeModal.id);
+            }
+        });
     }
-
-    // --- Diary Core Operations ---
-    saveEntry() { // Saves new or updated entry
+    
+    // --- 2. 日记核心功能 ---
+    saveEntry() {
         if (this.isSaving) return;
+        const saveBtn = document.getElementById('save-entry-btn');
         const content = document.getElementById('diary-textarea').value.trim();
-        if (!content) { this.showToast('Cannot save an empty diary entry', 'error'); return; }
+        if (!content) {
+            this.showToast('日记内容不能为空哦', 'error');
+            return;
+        }
 
         this.isSaving = true;
-        const saveBtn = document.getElementById('save-entry-btn');
         saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving...';
+        saveBtn.textContent = '发布中...';
 
-        setTimeout(() => { // Simulate saving process
+        setTimeout(() => {
             const tags = document.getElementById('entry-tags-input').value.split(',').map(t => t.trim()).filter(Boolean);
             const entryId = document.getElementById('editing-entry-id').value;
             const now = new Date().toISOString();
-            if (entryId) { // Update existing
+            if (entryId) {
                 const entry = this.entries.find(e => e.id === entryId);
                 if (entry) {
                     entry.content = content;
                     entry.tags = tags;
                     entry.updatedAt = now;
-                    this.showToast('Diary updated');
+                    this.showToast('日记已更新');
                 }
-            } else { // Add new
+            } else {
                 this.entries.unshift({ id: this.generateId(), content, tags, createdAt: now, updatedAt: now });
-                this.showToast('Diary published');
+                this.showToast('日记已发布');
             }
             this.saveData();
             this.renderEntries();
             this.updateProfileDisplay();
             this.closeEntryForm();
+
             this.isSaving = false;
             saveBtn.disabled = false;
-            saveBtn.textContent = 'Publish';
+            saveBtn.textContent = '发布';
         }, 300);
     }
 
-    deleteEntry(entryId) { // Initiates the deletion process
+    deleteEntry(entryId) {
         this.currentDeletingEntryId = entryId;
-        this.showModal('confirmation-modal');
+        this.openModal('confirmation-modal');
     }
 
-    confirmDeleteEntry() { // Executes deletion after confirmation
+    confirmDeleteEntry() {
         if (this.currentDeletingEntryId) {
             this.entries = this.entries.filter(e => e.id !== this.currentDeletingEntryId);
             this.saveData();
             this.renderEntries();
             this.updateProfileDisplay();
-            this.showToast('Diary deleted', 'info');
+            this.showToast('日记已删除', 'info');
         }
         this.closeConfirmationModal();
     }
 
-    // --- Rendering ---
-    renderEntries(query = '') { // Renders the list of diary entries, with optional filtering
+    // --- 3. 渲染与视图 ---
+    renderEntries(query = '') {
         const container = document.getElementById('diary-thread');
         let filteredEntries = [...this.entries];
-
-        if (query) { // Apply search filter
+        if (query) {
             const lowerQuery = query.toLowerCase();
             filteredEntries = filteredEntries.filter(e =>
                 e.content.toLowerCase().includes(lowerQuery) ||
                 (e.tags && e.tags.some(t => t.toLowerCase().includes(lowerQuery)))
             );
         }
-
-        // Sort entries based on settings
         filteredEntries.sort((a, b) => this.settings.sortOrder === 'oldest'
             ? new Date(a.createdAt) - new Date(b.createdAt)
             : new Date(b.createdAt) - new Date(a.createdAt)
         );
-
-        if (filteredEntries.length === 0) { // Display message if no entries match query or list is empty
-            container.innerHTML = `<div class="empty-message"><h3>${query ? 'No search results' : 'No diary entries yet'}</h3><p>${query ? 'Try different keywords?' : 'Click "Write New Diary" to start recording!'}</p></div>`;
+        
+        if (filteredEntries.length === 0) {
+            container.innerHTML = `<div class="empty-message"><h3>${query ? '没有找到相关日记' : '还没有日记'}</h3><p>${query ? '换个关键词试试？' : '点击“写新日记”开始记录吧！'}</p></div>`;
             return;
         }
-
         const fragment = document.createDocumentFragment();
         filteredEntries.forEach((entry, index) => fragment.appendChild(this.createEntryElement(entry, index)));
-        container.innerHTML = ''; // Clear previous content
+        container.innerHTML = '';
         container.appendChild(fragment);
     }
 
-    createEntryElement(entry, index) { // Creates a DOM element for a single diary entry
+    createEntryElement(entry, index) {
         const div = document.createElement('div');
         div.className = 'diary-entry';
-        div.style.animationDelay = `${index * 0.05}s`; // Stagger entry animations
-        // Generate tags HTML if available
+        div.style.animationDelay = `${index * 0.05}s`;
         const tagsHtml = (entry.tags && entry.tags.length > 0)
             ? `<div class="entry-tags">${entry.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>`
             : '';
-        // Construct the HTML for the entry
         div.innerHTML = `
             <div class="entry-meta">
                 <div class="author-info">
@@ -260,67 +296,63 @@ class SimpleDiaryApp {
                 </div>
                 ${tagsHtml}
                 <div class="entry-actions">
-                    <button class="icon-btn edit-btn" title="Edit"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
-                    <button class="icon-btn delete-btn" title="Delete"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+                    <button class="icon-btn edit-btn" title="编辑"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+                    <button class="icon-btn delete-btn" title="删除"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
                 </div>
             </div>
             <div class="entry-content">${this.formatContent(entry.content)}</div>`;
-        // Add click listeners to edit/delete buttons
         div.querySelector('.edit-btn').addEventListener('click', e => { e.stopPropagation(); this.openEntryForm(entry.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); this.deleteEntry(entry.id); });
         return div;
     }
 
-    // --- 3D Diary Book Logic ---
-    toggle3DView() { // Toggles between list view and 3D book view
-        if (this.isBookAnimating) return;
+    // --- 4. 3D日记本 ---
+    toggle3DView() {
+        if (this.isBookAnimating) return; 
         this.isBookOpen ? this.closeBookView() : this.openBookView();
     }
 
-    openBookView() { // Opens the 3D book view
+    openBookView() {
         this.isBookAnimating = true;
         this.isBookOpen = true;
         document.getElementById('diary-thread').classList.add('hidden');
         document.getElementById('diary-book-3d').classList.remove('hidden');
         this.renderBookPages();
         
-        setTimeout(() => { // Start cover animation
+        setTimeout(() => {
             document.querySelector('.book-cover').classList.add('opened');
-            setTimeout(() => { // Show pages after cover anim
+            setTimeout(() => {
                 document.querySelector('.book-pages').classList.add('visible');
                 this.isBookAnimating = false;
-            }, 500); // Match cover open animation duration
+            }, 500);
         }, 100);
     }
 
-    closeBookView() { // Closes the 3D book view
+    closeBookView() {
         this.isBookAnimating = true;
         this.isBookOpen = false;
         document.querySelector('.book-cover').classList.remove('opened');
         document.querySelector('.book-pages').classList.remove('visible');
         
-        setTimeout(() => { // Return to list view after cover closes
+        setTimeout(() => {
             document.getElementById('diary-book-3d').classList.add('hidden');
             document.getElementById('diary-thread').classList.remove('hidden');
             this.isBookAnimating = false;
-        }, 800); // Match cover close animation duration
+        }, 800);
     }
 
-    renderBookPages() { // Renders diary entries as pages in the 3D book
+    renderBookPages() {
         const container = document.querySelector('#diary-book-3d .pages-container');
-        // Sort entries for the book view (newest first)
-        this.currentBookEntries = [...this.entries].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
-        if (this.currentBookEntries.length === 0) { // Handle empty book case
-            container.innerHTML = `<div class="book-page"><div class="empty-page"><h3>The diary book is empty</h3><p>Write your first entry to start!</p></div></div>`;
-            this.currentPageIndex = -1; // Indicate currently at cover
+        this.currentBookEntries = [...this.entries].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        if (this.currentBookEntries.length === 0) {
+            container.innerHTML = `<div class="book-page"><div class="empty-page"><h3>日记本是空的</h3><p>快去写下第一篇日记吧！</p></div></div>`;
+            this.currentPageIndex = -1;
         } else {
             const fragment = document.createDocumentFragment();
-            // Create DOM elements for each entry as a page
             this.currentBookEntries.forEach((entry, i) => {
                 const page = document.createElement('div');
                 page.className = 'book-page';
-                page.style.zIndex = this.currentBookEntries.length - i; // Stack pages correctly
+                page.style.zIndex = this.currentBookEntries.length - i;
                 page.innerHTML = `
                     <div class="page-content-wrapper">
                         <div class="page-header"><div class="page-date">${this.getFormattedTime(entry.createdAt, 'full')}</div></div>
@@ -329,228 +361,325 @@ class SimpleDiaryApp {
                     </div>`;
                 fragment.appendChild(page);
             });
-            container.innerHTML = ''; // Clear previous pages
+            container.innerHTML = '';
             container.appendChild(fragment);
-            this.currentPageIndex = 0; // Reset to the first page
+            this.currentPageIndex = 0;
         }
-        this.updatePageIndicator(); // Update navigation controls visibility and text
+        this.updatePageIndicator();
     }
     
-    changePage(direction) { // Handles page turning logic
+    changePage(direction) {
         if (this.isPageAnimating) return;
         const newIndex = this.currentPageIndex + direction;
-
-        if (newIndex >= 0 && newIndex < this.currentBookEntries.length) { // If valid page index
+    
+        if (newIndex >= 0 && newIndex < this.currentBookEntries.length) {
             this.isPageAnimating = true;
             const pages = document.querySelectorAll('.book-page');
             
-            if (direction > 0) { // Turning forward
+            if (direction > 0) {
                 pages[this.currentPageIndex].classList.add('flipped');
-            } else { // Turning backward
+            } else {
                 pages[newIndex].classList.remove('flipped');
             }
-
+    
             this.currentPageIndex = newIndex;
             this.updatePageIndicator();
-            setTimeout(() => { this.isPageAnimating = false; }, 800); // Match animation timeframe
-        } else if (newIndex < 0 && this.currentPageIndex === 0) { // Trying to turn back from first page -> close book
-            this.closeBookView();
+            setTimeout(() => { this.isPageAnimating = false; }, 800);
         }
     }
     
-    updatePageIndicator() { // Updates page number display and navigation button states
-        const pageIndicatorSpan = document.getElementById('current-page');
-        if (!pageIndicatorSpan) return; // Safety check
-        pageIndicatorSpan.textContent = this.currentPageIndex >= 0 ? `第 ${this.currentPageIndex + 1} 页` : '封面'; // Update page number text
-        document.getElementById('prev-page-btn').disabled = this.currentPageIndex <= 0; // Disable prev if on first page or cover
-        document.getElementById('next-page-btn').disabled = this.currentPageIndex >= this.currentBookEntries.length - 1; // Disable next if on last page
+    updatePageIndicator() {
+        document.getElementById('current-page').textContent = this.currentPageIndex >= 0 ? `第 ${this.currentPageIndex + 1} 页` : '封面';
+        document.getElementById('prev-page-btn').disabled = this.currentPageIndex <= 0;
+        document.getElementById('next-page-btn').disabled = this.currentPageIndex >= this.currentBookEntries.length - 1;
     }
     
-    // --- User Profile Logic ---
-    updateProfileDisplay() { // Updates displayed profile info (avatar, name, signature, stats)
+    // --- 5. 个人资料 ---
+    updateProfileDisplay() {
         const profile = this.settings.profile;
         const avatarHtml = this.getAvatarHtml(profile.avatar, profile.name);
-        document.getElementById('header-avatar-display').innerHTML = avatarHtml; // Update header avatar
-        document.getElementById('profile-display-avatar').innerHTML = avatarHtml; // Update profile modal avatar
-        document.getElementById('profile-display-name').textContent = profile.name || 'Anonymous User';
-        document.getElementById('profile-display-signature').textContent = profile.signature || 'This person is mysterious...';
-        // Update stats
+        document.getElementById('header-avatar-display').innerHTML = avatarHtml;
+        document.getElementById('profile-display-avatar').innerHTML = avatarHtml;
+        document.getElementById('profile-display-name').textContent = profile.name || '匿名用户';
+        document.getElementById('profile-display-signature').textContent = profile.signature || '这个人很神秘...';
         document.getElementById('total-entries').textContent = this.entries.length;
         document.getElementById('total-words').textContent = this.entries.reduce((sum, e) => sum + e.content.length, 0);
-        // Update latest entry date
         const sortedEntries = [...this.entries].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
         document.getElementById('latest-entry').textContent = sortedEntries.length > 0 ? this.getFormattedTime(sortedEntries[0].updatedAt || sortedEntries[0].createdAt) : '-';
     }
 
-    saveProfile() { // Saves edited profile details
+    saveProfile() {
         this.settings.profile.name = document.getElementById('profile-username-input').value.trim();
         this.settings.profile.signature = document.getElementById('profile-signature-input').value.trim();
         this.saveData();
         this.updateProfileDisplay();
-        this.renderEntries(); // Re-render to potentially update author name in list
+        this.renderEntries();
         this.closeEditProfileModal();
-        this.showToast('Profile updated');
+        this.showToast('个人资料已保存');
     }
 
-    handleAvatarUpload(event) { // Handles fetching and previewing avatar image file
+    handleAvatarUpload(event) {
         const file = event.target.files[0];
         if (!file || !file.type.startsWith('image/')) return;
         const reader = new FileReader();
         reader.onload = e => {
-            this.settings.profile.avatar = e.target.result; // Store avatar data URL
+            this.settings.profile.avatar = e.target.result;
             this.updateAvatarPreview(e.target.result);
         };
         reader.readAsDataURL(file);
     }
-    updateAvatarPreview(imgData = this.settings.profile.avatar) { // Updates the avatar preview in the edit profile modal
+
+    updateAvatarPreview(imageData = this.settings.profile.avatar) {
         const previewArea = document.getElementById('profile-avatar-preview-area');
         if (previewArea) {
-            previewArea.innerHTML = this.getAvatarHtml(imgData, document.getElementById('profile-username-input')?.value);
+            previewArea.innerHTML = this.getAvatarHtml(imageData, document.getElementById('profile-username-input').value);
         }
     }
 
-    // --- Settings Panel Logic ---
-    saveSettings() { // Saves current settings from UI controls
+    // --- 6. 设置 ---
+    async saveSettings() {
         this.settings.theme = document.querySelector('.theme-option.active')?.dataset.theme || 'light';
         const activeFont = document.querySelector('.font-option.active');
-        if (activeFont) this.settings.fontId = activeFont.dataset.fontId; // Store selected global font ID
-        this.settings.timeFormat = document.querySelector('input[name="timeFormat"]:checked')?.value || 'relative';
-        this.settings.sortOrder = document.querySelector('input[name="sortOrder"]:checked')?.value || 'newest';
+        if (activeFont) this.settings.fontId = activeFont.dataset.fontId;
+        this.settings.timeFormat = document.querySelector('input[name="timeFormat"]:checked').value;
+        this.settings.sortOrder = document.querySelector('input[name="sortOrder"]:checked').value;
         
-        this.saveData(); // Save settings to local storage
-        this.applySettings(); // Apply theme and font changes visually
-        this.renderEntries(); // Re-render entries if sorting or formatting changed
-        this.showToast('Settings saved');
-        this.closeModal('settings-modal'); 
+        // 保存日记本字体
+        const zhUrl = document.getElementById('book-font-zh-url-input').value.trim();
+        const enUrl = document.getElementById('book-font-en-url-input').value.trim();
+        
+        try {
+            if (zhUrl && zhUrl !== this.settings.bookFont.chinese.url) {
+                this.settings.bookFont.chinese = await this.parseFontInfo(zhUrl);
+            } else if (!zhUrl) {
+                this.settings.bookFont.chinese = { name: '', family: '', url: '' };
+            }
+            if (enUrl && enUrl !== this.settings.bookFont.english.url) {
+                this.settings.bookFont.english = await this.parseFontInfo(enUrl);
+            } else if (!enUrl) {
+                this.settings.bookFont.english = { name: '', family: '', url: '' };
+            }
+        } catch (error) {
+            this.showToast(`保存日记本字体失败: ${error.message}`, 'error');
+        }
+
+        this.saveData();
+        this.applySettings();
+        this.applyBookFonts();
+        this.renderEntries();
+        this.showToast('设置已保存');
+        this.closeModal('settings-modal');
     }
     
-    selectTheme(theme) { // Handles theme selection click in settings
+    selectTheme(theme) {
         document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
         document.querySelector(`.theme-option[data-theme="${theme}"]`).classList.add('active');
-        document.documentElement.setAttribute('data-theme', theme); // Apply theme to root element
+        document.documentElement.setAttribute('data-theme', theme);
     }
     
-    handleFontSelection(event) { // Handles global font selection click in settings
+    // --- 7. 字体管理 ---
+    handleFontSelection(event) {
         const fontOption = event.target.closest('.font-option');
         if (fontOption) this.selectFont(fontOption);
     }
 
-    selectFont(fontEl) { // Manually sets active state and applies font to body
+    selectFont(fontEl) {
         document.querySelectorAll('.font-option').forEach(el => el.classList.remove('active'));
         fontEl.classList.add('active');
         const fontId = fontEl.dataset.fontId;
         
-        let fontFamilyToApply = this.fontMap[fontId]; // Default to presets
-        // If it's a custom font, construct the family string dynamically
+        let fontFamilyToApply = this.fontMap[fontId]?.font;
+
         if (fontId.startsWith('custom-')) {
             const index = parseInt(fontId.split('-')[1], 10);
             const customFont = this.settings.customFonts[index];
             if (customFont) {
-                fontFamilyToApply = `'${customFont.family}', sans-serif`; // Use parsed family
+                fontFamilyToApply = `'${customFont.family}', sans-serif`;
             }
         }
-        document.body.style.fontFamily = fontFamilyToApply; // Apply font to the entire body
+        document.body.style.fontFamily = fontFamilyToApply;
     }
     
-    applySettings() { // Applies theme and global font settings from `this.settings`
+    applySettings() {
         document.documentElement.setAttribute('data-theme', this.settings.theme);
         
-        // Construct a temporary map including custom fonts for lookup
-        const tempFontMap = { ...this.fontMap };
+        const fullFontMap = {};
+        Object.entries(this.fontMap).forEach(([id, config]) => fullFontMap[id] = config.font);
          this.settings.customFonts.forEach((font, index) => {
-            tempFontMap[`custom-${index}`] = `'${font.family}', sans-serif`; // Map custom font ID to its family string
+            fullFontMap[`custom-${index}`] = `'${font.family}', sans-serif`;
         });
-        // Get the font family string for the currently selected fontId, with fallback
-        const fontToApply = tempFontMap[this.settings.fontId] || this.fontMap['sans-serif']; // Fallback to sans-serif
-        if (document.body.style.fontFamily !== fontToApply) { // Apply only if changed
+        const fontToApply = fullFontMap[this.settings.fontId] || this.fontMap['sans-serif'].font;
+        if (document.body.style.fontFamily !== fontToApply) {
             document.body.style.fontFamily = fontToApply;
         }
     }
 
-    // --- Font Management (Custom Fonts) ---
-    loadCustomFonts() { // Loads custom fonts into UI list and adds <link> tags if needed
-        document.querySelectorAll('link[data-custom-font]').forEach(link => link.remove()); // Clear previous custom font links
-        
-        const customList = document.getElementById('custom-font-list');
-        if (!customList) return; // Exit if element not found
-        customList.innerHTML = ''; // Clear current list in settings panel
-        
-        const fragmentOptions = document.createDocumentFragment(); // For global font options
-        const fragmentList = document.createDocumentFragment();     // For custom font list in settings
+    loadCustomFonts() {
+        document.querySelectorAll('link[data-custom-font]').forEach(link => link.remove());
+        this.settings.customFonts.forEach(font => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = font.url;
+            link.dataset.customFont = "true";
+            document.head.appendChild(link);
+        });
+        this.areFontsRendered = false; // Force re-render of options
+    }
 
+    renderFontOptions() {
+        const container = document.getElementById('font-options-container');
+        const customList = document.getElementById('custom-font-list');
+        if (!container || !customList) return;
+
+        container.innerHTML = '';
+        customList.innerHTML = '';
+        
+        // Render preset fonts
+        Object.entries(this.fontMap).forEach(([id, config]) => {
+            const fontOption = document.createElement('div');
+            fontOption.className = `font-option`;
+            fontOption.dataset.fontId = id;
+            fontOption.innerHTML = `<div class="font-preview ${id}">${config.name}</div><span>${config.name}</span><small>${config.description||''}</small>`;
+            container.appendChild(fontOption);
+        });
+        
+        // Render custom fonts
         this.settings.customFonts.forEach((font, index) => {
-            // Add font to Global Font Options UI
             const fontId = `custom-${index}`;
-            const option = document.createElement('div');
-            option.className = 'font-option custom-font-option'; // Need custom class for styling
-            option.dataset.fontId = fontId;
-            // Use parsed family for preview style, fallback if missing
-            const previewFontFamily = font.family ? `'${font.family}', sans-serif` : "var(--font-sans)"; 
-            option.innerHTML = `<div class="font-preview" style="font-family: ${previewFontFamily};">Aa 你好</div><span>${font.name}<small>Custom</small></span>`;
-            if (fontId === this.settings.fontId) option.classList.add('active'); // Mark if selected
-            fragmentOptions.appendChild(option);
+            const fontOption = document.createElement('div');
+            fontOption.className = 'font-option custom-font-option';
+            fontOption.dataset.fontId = fontId;
+            fontOption.innerHTML = `<div class="font-preview" style="font-family: '${font.family}', sans-serif;">${font.name}</div><span>${font.name}</span><small>自定义</small>`;
+            container.appendChild(fontOption);
             
-            // Add font to Custom Font List in Settings UI
             const listItem = document.createElement('li');
             listItem.innerHTML = `<span>${font.name}</span> <button class="delete-font-btn" data-index="${index}">&times;</button>`;
-            fragmentList.appendChild(listItem);
-            
-            // Dynamically load font CSS if not already loaded
-            if (font.url && !this.isFontAlreadyLoaded(font.url)) {
-                const link = document.createElement('link');
-                link.rel = 'stylesheet';
-                link.href = font.url;
-                link.dataset.customFont = "true"; // Mark as custom font link
-                document.head.appendChild(link);
-            }
+            customList.appendChild(listItem);
         });
-        document.getElementById('font-options-container').appendChild(fragmentOptions); // Append to global options
-        customList.appendChild(fragmentList); // Append to custom list in settings
-        this.areFontsRendered = false; // Mark that options need re-rendering
-    }
 
-    isFontAlreadyLoaded(url) { // Checks if a font CSS link already exists in the head
-        return Array.from(document.head.querySelectorAll('link[rel="stylesheet"][data-custom-font="true"]'))
-            .some(link => link.href === url);
-    }
+        // Re-apply active state
+        const activeOption = container.querySelector(`.font-option[data-font-id="${this.settings.fontId}"]`);
+        if (activeOption) activeOption.classList.add('active');
 
-    async parseFontInfo(url, userGivenName) { // Parses font {name, family, url} from CSS
-        if (!url) throw new Error('URL cannot be empty');
-        try { new URL(url); } catch (_) { if (!url.startsWith('data:')) throw new Error('Invalid URL'); }
+        this.areFontsRendered = true;
+    }
     
+    async parseFontInfo(url, userGivenName = '') {
+        if (!url) throw new Error('URL不能为空');
+        try { new URL(url); } catch (_) { if (!url.startsWith('data:')) throw new Error('无效的URL'); }
+
         let cssText = '';
-        if (url.startsWith('data:')) { // Handle Data URLs
+        if (url.startsWith('data:')) {
              const parts = url.split(',');
-             if (parts.length < 2) throw new Error('Invalid Data URL format');
+             if (parts.length < 2) throw new Error('无效的Data URL格式');
              cssText = decodeURIComponent(parts[1]);
-        } else { // Handle HTTP/HTTPS URLs
+        } else {
             const res = await fetch(url);
-            if (!res.ok) throw new Error(`Network request failed: ${res.statusText}`);
+            if (!res.ok) throw new Error(`网络请求失败: ${res.statusText}`);
             cssText = await res.text();
         }
         
-        // Use Regex to find font-family declaration
         const match = cssText.match(/font-family\s*:\s*['"]?([^;'"]+)['"]?/);
-        if (!match || !match[1]) {
-            throw new Error('Could not find font-family in CSS');
-        }
+        if (!match || !match[1]) throw new Error('未能在文件中找到字体名称');
+        
         const family = match[1].trim();
-        // Determine font name: prefer user's input, fallback to parsed family name
         const simpleName = userGivenName || family.split(',')[0].replace(/['"]/g, '').trim();
-        return { name: simpleName, family: family, url: url };
+        
+        return { name: simpleName, family: family, url };
     }
 
-    async addCustomFont() { // Adds a new custom font from user input (URL)
+    async addCustomFont() {
         const nameInput = document.getElementById('custom-font-name-input');
         const urlInput = document.getElementById('custom-font-url-input');
         const addBtn = document.getElementById('add-custom-font-btn');
     
-        let userGivenName = nameInput.value.trim().replace(/^['"]|['"]$/g, '');
+        const userGivenName = nameInput.value.trim();
         const url = urlInput.value.trim();
-        if (!url) { this.showToast('Font URL cannot be empty', 'error'); return; }
-        try { new URL(url); } catch (_) { if (!url.startsWith('data:')) { this.showToast('Please enter a valid URL', 'error'); return; } }
     
-        addBtn.disabled = true; addBtn.textContent = 'Parsing...';
+        if (!url) { this.showToast('字体链接不能为空', 'error'); return; }
+    
+        addBtn.disabled = true; addBtn.textContent = '解析中...';
+    
         try {
             const fontInfo = await this.parseFontInfo(url, userGivenName);
- 
+            this.settings.customFonts.push(fontInfo);
+            this.saveData();
+            this.loadCustomFonts();
+            this.renderFontOptions();
+            this.showToast(`字体 "${fontInfo.name}" 已添加`);
+            nameInput.value = ''; urlInput.value = '';
+    
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        } finally {
+            addBtn.disabled = false; addBtn.textContent = '添加';
+        }
+    }
+
+    deleteCustomFont(index) {
+        const font = this.settings.customFonts[index];
+        if (confirm(`确定要删除字体 "${font.name}" 吗？`)) {
+            const deletedFontId = `custom-${index}`;
+            this.settings.customFonts.splice(index, 1);
+            if(this.settings.fontId === deletedFontId){
+                this.settings.fontId = 'sans-serif';
+            } else if (this.settings.fontId.startsWith('custom-')) {
+                const oldIndex = parseInt(this.settings.fontId.split('-')[1], 10);
+                if (oldIndex > index) {
+                    this.settings.fontId = `custom-${oldIndex - 1}`;
+                }
+            }
+            this.saveData();
+            this.loadCustomFonts();
+            this.renderFontOptions();
+            this.applySettings();
+            this.showToast(`字体 "${font.name}" 已删除`);
+        }
+    }
+
+    applyBookFonts() {
+        document.querySelectorAll('style[data-book-font]').forEach(el => el.remove());
+        
+        const createStyle = (id, font) => {
+            if (!font || !font.url) return;
+            const style = document.createElement('style');
+            style.dataset.bookFont = id;
+            if (font.url.startsWith('data:')) {
+                style.textContent = decodeURIComponent(font.url.substring(font.url.indexOf(',') + 1));
+            } else {
+                style.textContent = `@import url('${font.url}');`;
+            }
+            document.head.appendChild(style);
+        };
+
+        createStyle('chinese', this.settings.bookFont.chinese);
+        createStyle('english', this.settings.bookFont.english);
+
+        document.documentElement.style.setProperty('--book-font-zh', this.settings.bookFont.chinese?.family || 'var(--font-sans)');
+        document.documentElement.style.setProperty('--book-font-en', this.settings.bookFont.english?.family || 'var(--font-script)');
+    }
+    
+    // --- 8. 模态框控制 ---
+    openModal(id) { document.getElementById(id)?.classList.add('active'); }
+    closeModal(id) { document.getElementById(id)?.classList.remove('active'); }
+
+    openEntryForm(entryId = null) {
+        const isEdit = entryId !== null;
+        document.getElementById('entry-form-title').textContent = isEdit ? '编辑日记' : '记录此刻的想法...';
+        const entry = isEdit ? this.entries.find(e => e.id === entryId) : null;
+        document.getElementById('diary-textarea').value = entry ? entry.content : '';
+        document.getElementById('entry-tags-input').value = entry && entry.tags ? entry.tags.join(', ') : '';
+        document.getElementById('editing-entry-id').value = entryId || '';
+        document.getElementById('tags-input-container').classList.toggle('hidden', !isEdit || !entry?.tags?.length);
+        this.openModal('entry-form-modal');
+    }
+    closeEntryForm() { this.closeModal('entry-form-modal'); }
+
+    openProfileModal() { this.openModal('profile-modal'); }
+    closeProfileModal() { this.closeModal('profile-modal'); }
+    
+    openEditProfileModal() {
+        document.getElementById('profile-username-input').value = this.settings.profile.name;
+        document.getElementById('profile-signature-input').value = this.settings.profile.signature;
+        this.updateAvatarPreview();
+        this.openModal('edit-profile-modal
