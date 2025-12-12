@@ -1,10 +1,11 @@
 /**
- * SimpleDiaryApp - v5.4 (精细调整)
+ * SimpleDiaryApp - v5.5 (样式 & 字体预设修正)
  * -------------------------------------------
- * - [功能调整] 移除全局字体预设中的“站酷快乐体”。
- * - [功能调整] 3D日记本默认中文字体使用指定CSS，英文字体默认使用 Sacramento 花体。
- * - [逻辑优化] 用户添加的自定义字体现在可以被选为全局字体，也可被指定为日记本字体。
- * - [兼容性] 优化了字体加载和设置逻辑，确保多处字体应用的一致性。
+ * - [样式修正] 恢复并优化了大部分 CSS 样式，使其更接近你提供的美观 HTML 结构。
+ * - [功能修正] 严格移除了全局字体选项中的“站酷快乐体”预设。
+ * - [功能增强] 3D日记本默认中文字体使用指定CSS，英文字体默认使用 Sacramento 花体。
+ * - [逻辑优化] 确保用户添加的自定义字体能正确作为全局字体或日记本字体使用，并与UI交互良好。
+ * - [代码优化] `fontMap` 和 `renderFontOptions` 逻辑已同步更新。
  */
 class SimpleDiaryApp {
     constructor() {
@@ -22,10 +23,11 @@ class SimpleDiaryApp {
         };
         this.entries = [];
         this.settings = JSON.parse(JSON.stringify(this.constructor.defaultSettings));
+        // **fontMap 已更新，移除了 'handwritten' 预设**
         this.fontMap = {
             'sans-serif': { name: "思源黑体", font: "'Noto Sans SC', sans-serif", description: "现代简洁", previews: { aa: "Aa 你好" } },
             'serif': { name: "思源宋体", font: "'Noto Serif SC', serif", description: "优雅古典", previews: { aa: "Aa 你好" } },
-            // 'handwritten': { name: "站酷快乐体", font: "'ZCOOL KuaiLe', cursive", description: "活泼手写", previews: { aa: "Aa 你好" } } // <-- 已移除
+            // 'handwritten': { name: "站酷快乐体", font: "'ZCOOL KuaiLe', cursive", ... } // <-- 已移除
         };
         // State variables
         this.isBookOpen = false; this.isBookAnimating = false; this.isPageAnimating = false; this.areFontsRendered = false; this.isSaving = false; this.isFetching = false;
@@ -36,9 +38,8 @@ class SimpleDiaryApp {
 
     init() {
         this.loadData();
-        this.setupEventListeners();
-        this.loadCustomFonts(); // Load custom fonts into UI and document <head>
-        this.applySettings();   // Apply global font and theme settings
+        this.loadCustomFonts(); // Load custom fonts into UI and header links
+        this.applySettings();   // Apply global font and theme from settings
         this.applyBookFonts();  // Apply default or saved book fonts
         this.updateProfileDisplay();
         this.renderEntries();
@@ -62,10 +63,10 @@ class SimpleDiaryApp {
                 // Merge settings, starting with defaults and applying saved ones
                 const mergedSettings = this.mergeDeep(JSON.parse(JSON.stringify(this.constructor.defaultSettings)), data.settings || {});
                 
-                // Compatibility for custom fonts: ensure 'family' property exists
+                // Ensure customFonts format is consistent { name, family, url }
                 mergedSettings.customFonts = (mergedSettings.customFonts || []).map(font => {
                     if (typeof font === 'object' && font !== null && !font.family && font.name) {
-                        return { ...font, family: font.name }; // Use name as family if missing
+                        return { ...font, family: font.name };
                     }
                     return font;
                 });
@@ -96,19 +97,22 @@ class SimpleDiaryApp {
 
         // Core Operations
         bind('open-entry-form-btn', 'click', this.openEntryForm);
-        bind('save-entry-btn', 'click', this.saveEntry);
+        bind('toggle-3d-view-btn', 'click', this.toggle3DView);
+        bind('profile-btn', 'click', this.openProfileModal);
+        bind('settings-btn', 'click', this.openSettingsModal);
+        bind('search-input', 'input', this.handleSearch);
+        bind('clear-search-btn', 'click', this.clearSearch);
         bind('close-entry-form-btn', 'click', this.closeEntryForm);
+        bind('save-entry-btn', 'click', this.saveEntry);
         bind('toggle-tags-input-btn', 'click', this.toggleTagsInput);
         bind('cancel-delete-btn', 'click', this.closeConfirmationModal);
         bind('confirm-delete-btn', 'click', this.confirmDeleteEntry);
-        bind('profile-btn', 'click', this.openProfileModal);
         bind('close-profile-btn', 'click', this.closeProfileModal);
         bind('edit-profile-btn', 'click', this.openEditProfileModal);
         bind('cancel-edit-profile-btn', 'click', this.closeEditProfileModal);
         bind('save-profile-btn', 'click', this.saveProfile);
         bind('profile-avatar-upload-trigger', 'click', () => document.getElementById('profile-avatar-file-input')?.click());
         bind('profile-avatar-file-input', 'change', this.handleAvatarUpload);
-        bind('settings-btn', 'click', this.openSettingsModal);
         bind('close-settings-btn', 'click', this.closeSettingsModal);
         bind('save-settings-btn', 'click', this.saveSettings);
         bind('export-data-btn', 'click', this.exportData);
@@ -127,27 +131,21 @@ class SimpleDiaryApp {
         bind('next-page-btn', 'click', () => this.changePage(1));
         bind('close-book-btn', 'click', this.closeBookView);
 
-        // Settings Panel Navigation
+        // Settings Panel Navigation & Actions
         bindAll('#settings-nav-list li', 'click', this.switchSettingsTab);
-        // Theme Selection
         bindAll('.theme-option', 'click', this.selectTheme);
-        // Global Font Selection
         bindAll('.font-option', 'click', this.handleFontSelection);
-        // Add Custom Font (Global)
         bind('add-custom-font-btn', 'click', this.addCustomFont);
-        // Update Book Font Settings
-        bind('add-book-font-btn', 'click', this.updateBookFont);
+        bind('add-book-font-btn', 'click', this.updateBookFont); // Function to set book's default fonts
 
-        // Modal Closing (Generic)
+        // Modal Handling & Escape Key
         bindAll('.modal-close-btn', 'click', (e) => this.closeModal(e.target.closest('.modal-overlay')?.id));
         bindAll('.modal-overlay', 'click', (e) => { if (e.target === e.currentTarget) this.closeModal(e.target.id); });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const activeModal = document.querySelector('.modal-overlay.active'); if (activeModal) this.closeModal(activeModal.id); } });
 
-        // Search Input Handling
+        // Search & Custom Font List Actions
         bind('search-input', 'input', this.handleSearch);
         bind('clear-search-btn', 'click', this.clearSearch);
-
-        // Custom Font List Deletion
         document.getElementById('custom-font-list')?.addEventListener('click', e => {
             if (e.target.classList.contains('delete-font-btn')) {
                 this.deleteCustomFont(parseInt(e.target.dataset.index, 10));
@@ -159,21 +157,21 @@ class SimpleDiaryApp {
     }
 
     // --- Diary Core Operations ---
-    saveEntry() { // Saves a new or updated diary entry
+    saveEntry() { // Saves new or updated entry
         if (this.isSaving) return;
         const content = document.getElementById('diary-textarea').value.trim();
-        const entryId = document.getElementById('editing-entry-id').value;
-        if (!content) { this.showToast('Diary content cannot be empty', 'error'); return; }
+        if (!content) { this.showToast('Cannot save an empty diary entry', 'error'); return; }
 
         this.isSaving = true;
         const saveBtn = document.getElementById('save-entry-btn');
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving...';
 
-        setTimeout(() => { // Simulate saving process
+        setTimeout(() => {
             const tags = document.getElementById('entry-tags-input').value.split(',').map(t => t.trim()).filter(Boolean);
+            const entryId = document.getElementById('editing-entry-id').value;
             const now = new Date().toISOString();
-            if (entryId) { // Update existing entry
+            if (entryId) { // Update existing
                 const entry = this.entries.find(e => e.id === entryId);
                 if (entry) {
                     entry.content = content;
@@ -181,9 +179,9 @@ class SimpleDiaryApp {
                     entry.updatedAt = now;
                     this.showToast('Diary updated');
                 }
-            } else { // Add new entry
+            } else { // Add new
                 this.entries.unshift({ id: this.generateId(), content, tags, createdAt: now, updatedAt: now });
-                this.showToast('Diary entry published');
+                this.showToast('Diary published');
             }
             this.saveData();
             this.renderEntries();
@@ -195,12 +193,12 @@ class SimpleDiaryApp {
         }, 300);
     }
 
-    deleteEntry(entryId) { // Initiates the deletion process
+    deleteEntry(entryId) { // Initiates deletion confirmation
         this.currentDeletingEntryId = entryId;
         this.showModal('confirmation-modal');
     }
 
-    confirmDeleteEntry() { // Confirms and performs deletion
+    confirmDeleteEntry() { // Executes deletion after confirmation
         if (this.currentDeletingEntryId) {
             this.entries = this.entries.filter(e => e.id !== this.currentDeletingEntryId);
             this.saveData();
@@ -212,11 +210,11 @@ class SimpleDiaryApp {
     }
 
     // --- Rendering ---
-    renderEntries(query = '') { // Renders the list of diary entries, with optional filtering
+    renderEntries(query = '') { // Renders diary entries, optionally filtered
         const container = document.getElementById('diary-thread');
         let filteredEntries = [...this.entries];
 
-        if (query) { // Apply search filter
+        if (query) { // Apply search query
             const lowerQuery = query.toLowerCase();
             filteredEntries = filteredEntries.filter(e =>
                 e.content.toLowerCase().includes(lowerQuery) ||
@@ -224,36 +222,34 @@ class SimpleDiaryApp {
             );
         }
 
-        // Sort entries based on settings
+        // Sort entries according to settings
         filteredEntries.sort((a, b) => this.settings.sortOrder === 'oldest'
             ? new Date(a.createdAt) - new Date(b.createdAt)
             : new Date(b.createdAt) - new Date(a.createdAt)
         );
 
-        if (filteredEntries.length === 0) { // Display message if no entries
+        if (filteredEntries.length === 0) { // Display message if no entries match query or list is empty
             container.innerHTML = `<div class="empty-message"><h3>${query ? 'No search results' : 'No diary entries yet'}</h3><p>${query ? 'Try different keywords?' : 'Click "Write New Diary" to start recording!'}</p></div>`;
             return;
         }
 
         const fragment = document.createDocumentFragment();
         filteredEntries.forEach((entry, index) => fragment.appendChild(this.createEntryElement(entry, index)));
-        container.innerHTML = '';
+        container.innerHTML = ''; // Clear previous content
         container.appendChild(fragment);
     }
 
-    createEntryElement(entry, index) { // Creates a DOM element for a single diary entry
+    createEntryElement(entry, index) { // Creates DOM element for a single entry
         const div = document.createElement('div');
         div.className = 'diary-entry';
-        div.style.animationDelay = `${index * 0.05}s`;
-        // Generate tags HTML if available
+        div.style.animationDelay = `${index * 0.05}s`; // Stagger entry animations
         const tagsHtml = (entry.tags && entry.tags.length > 0)
             ? `<div class="entry-tags">${entry.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>`
             : '';
-        // Construct the HTML for the entry
         div.innerHTML = `
             <div class="entry-meta">
                 <div class="author-info">
-                    <div class="avatar small-avatar">${this.getAvatarHtml(this.settings.profile.avatar, this.settings.profile.name)}</div>
+                    <div class="avatar">${this.getAvatarHtml(this.settings.profile.avatar, this.settings.profile.name)}</div>
                     <span>${this.settings.profile.name}</span>
                 </div>
                 <div class="entry-metadata-details">
@@ -266,38 +262,40 @@ class SimpleDiaryApp {
                 </div>
             </div>
             <div class="entry-content">${this.formatContent(entry.content)}</div>`;
-        // Add event listeners to edit/delete buttons
+        // Add click listeners for edit/delete buttons
         div.querySelector('.edit-btn').addEventListener('click', e => { e.stopPropagation(); this.openEntryForm(entry.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); this.deleteEntry(entry.id); });
         return div;
     }
 
-    // --- 3D Diary Book ---
-    toggle3DView() { // Toggles between list view and 3D book view
-        if (this.isBookAnimating) return;
+    // --- 3D Diary Book Logic ---
+    toggle3DView() {
+        if (this.isBookAnimating) return; 
         this.isBookOpen ? this.closeBookView() : this.openBookView();
     }
 
-    openBookView() { // Opens the 3D book view
+    openBookView() {
         this.isBookAnimating = true;
         this.isBookOpen = true;
         document.getElementById('diary-thread').classList.add('hidden');
         document.getElementById('diary-book-3d').classList.remove('hidden');
         this.renderBookPages();
         
-        document.querySelector('.book').classList.add('open'); // Start cover animation
-        setTimeout(() => {
-            document.querySelector('.book-pages').classList.add('visible'); // Show pages after cover opens
-            this.isBookAnimating = false;
-        }, 800); // Match cover open animation duration
+        setTimeout(() => { // Start cover animation
+            document.querySelector('.book-cover').classList.add('opened');
+            setTimeout(() => { // Show pages after cover animation
+                document.querySelector('.book-pages').classList.add('visible');
+                this.isBookAnimating = false;
+            }, 500); // Match cover open animation duration
+        }, 100);
     }
 
-    closeBookView() { // Closes the 3D book view
+    closeBookView() {
         this.isBookAnimating = true;
         this.isBookOpen = false;
+        document.querySelector('.book-cover').classList.remove('opened'); // Start cover closing animation
         document.querySelector('.book-pages').classList.remove('visible');
-        document.querySelector('.book').classList.remove('open'); // Start cover close animation
-
+        
         setTimeout(() => { // Return to list view after cover closes
             document.getElementById('diary-book-3d').classList.add('hidden');
             document.getElementById('diary-thread').classList.remove('hidden');
@@ -305,93 +303,90 @@ class SimpleDiaryApp {
         }, 800); // Match cover close animation duration
     }
 
-    renderBookPages() { // Renders diary entries as pages in the 3D book
+    renderBookPages() { // Renders entries as pages in the 3D book
         const container = document.querySelector('#diary-book-3d .pages-container');
-        const pageFragment = document.createDocumentFragment();
-        // Sort entries for the book view (newest first)
-        this.currentBookEntries = [...this.entries].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+        this.currentBookEntries = [...this.entries].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sort for book view
         
-        if (this.currentBookEntries.length === 0) { // Handle empty book case
+        if (this.currentBookEntries.length === 0) { // Handle empty book scenario
             container.innerHTML = `<div class="book-page"><div class="empty-page"><h3>The diary book is empty</h3><p>Write your first entry to start!</p></div></div>`;
-            this.currentPageIndex = -1; // Indicate currently at cover
+            this.currentPageIndex = -1; // Indicate at cover
         } else {
-            // Create DOM elements for each entry
+            const fragment = document.createDocumentFragment();
             this.currentBookEntries.forEach((entry, i) => {
                 const page = document.createElement('div');
                 page.className = 'book-page';
                 page.style.zIndex = this.currentBookEntries.length - i; // Stack order
                 page.innerHTML = `
                     <div class="page-content-wrapper">
-                        <div class="page-header">${this.getFormattedTime(entry.createdAt, 'full')}</div>
+                        <div class="page-header"><div class="page-date">${this.getFormattedTime(entry.createdAt, 'full')}</div></div>
                         <div class="page-content">${this.formatContent(entry.content)}</div>
                         <div class="page-number">${i + 1} / ${this.currentBookEntries.length}</div>
                     </div>`;
-                pageFragment.appendChild(page);
+                fragment.appendChild(page);
             });
-            container.innerHTML = ''; // Clear previous content
-            container.appendChild(pageFragment);
-            this.currentPageIndex = 0; // Reset to the first page
+            container.innerHTML = '';
+            container.appendChild(fragment);
+            this.currentPageIndex = 0; // Reset to first page
         }
         this.updatePageIndicator(); // Update page navigation controls
     }
     
     changePage(direction) { // Handles page turning logic
         if (this.isPageAnimating) return;
-        const pages = document.querySelectorAll('.book-page');
         const newIndex = this.currentPageIndex + direction;
-
-        if (newIndex >= 0 && newIndex < this.currentBookEntries.length) { // Valid page index
+    
+        if (newIndex >= 0 && newIndex < this.currentBookEntries.length) { // If valid page index
             this.isPageAnimating = true;
+            const pages = document.querySelectorAll('.book-page');
             
             if (direction > 0) { // Turning forward
                 pages[this.currentPageIndex].classList.add('flipped');
             } else { // Turning backward
                 pages[newIndex].classList.remove('flipped');
             }
-
+    
             this.currentPageIndex = newIndex;
             this.updatePageIndicator();
-            setTimeout(() => { this.isPageAnimating = false; }, 800); // Match animation duration
-        } else if (newIndex < 0 && this.currentPageIndex === 0) { // Trying to turn back from first page - close book
+            setTimeout(() => { this.isPageAnimating = false; }, 800); // Match animation timeframe
+        } else if (newIndex < 0 && this.currentPageIndex === 0) { // Trying to turn back from first page -> close book
             this.closeBookView();
         }
     }
     
-    updatePageIndicator() { // Updates the page number display and navigation button states
+    updatePageIndicator() { // Updates page number display and button states
         const pageIndicatorSpan = document.getElementById('current-page');
-        if (!pageIndicatorSpan) return;
-
-        pageIndicatorSpan.textContent = this.currentPageIndex >= 0 ? `Page ${this.currentPageIndex + 1}` : 'Cover';
+        if (!pageIndicatorSpan) return; // Safety check
+        pageIndicatorSpan.textContent = this.currentPageIndex >= 0 ? `第 ${this.currentPageIndex + 1} 页` : '封面';
         document.getElementById('prev-page-btn').disabled = this.currentPageIndex <= 0;
         document.getElementById('next-page-btn').disabled = this.currentPageIndex >= this.currentBookEntries.length - 1;
     }
     
-    // --- User Profile ---
-    updateProfileDisplay() { // Updates the displayed profile info like avatar, name, stats
-        const p = this.settings.profile;
-        const avatarHtml = this.getAvatarHtml(p.avatar, p.name);
+    // --- User Profile Logic ---
+    updateProfileDisplay() { // Updates avatar, name, signature, and stats display
+        const profile = this.settings.profile;
+        const avatarHtml = this.getAvatarHtml(profile.avatar, profile.name);
         document.getElementById('header-avatar-display').innerHTML = avatarHtml;
         document.getElementById('profile-display-avatar').innerHTML = avatarHtml;
-        document.getElementById('profile-display-name').textContent = p.name || 'Anonymous User';
-        document.getElementById('profile-display-signature').textContent = p.signature || 'This person is mysterious...';
+        document.getElementById('profile-display-name').textContent = profile.name || 'Anonymous User';
+        document.getElementById('profile-display-signature').textContent = profile.signature || 'This person is mysterious...';
         document.getElementById('total-entries').textContent = this.entries.length;
         document.getElementById('total-words').textContent = this.entries.reduce((sum, e) => sum + e.content.length, 0);
         const sortedEntries = [...this.entries].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
         document.getElementById('latest-entry').textContent = sortedEntries.length > 0 ? this.getFormattedTime(sortedEntries[0].updatedAt || sortedEntries[0].createdAt) : '-';
     }
 
-    saveProfile() { // Saves changes to user profile
+    saveProfile() { // Saves edited profile details
         this.settings.profile.name = document.getElementById('profile-username-input').value.trim();
         this.settings.profile.signature = document.getElementById('profile-signature-input').value.trim();
         this.saveData();
         this.updateProfileDisplay();
-        this.renderEntries(); // Update entry list display if name changed
+        this.renderEntries(); // Re-render to potentially update author name in list
         this.closeEditProfileModal();
         this.showToast('Profile updated');
     }
 
-    handleAvatarUpload(e) { // Handles user uploading a new avatar image
-        const file = e.target.files[0];
+    handleAvatarUpload(event) { // Handles avatar image file input
+        const file = event.target.files[0];
         if (!file || !file.type.startsWith('image/')) return;
         const reader = new FileReader();
         reader.onload = e => {
@@ -400,83 +395,118 @@ class SimpleDiaryApp {
         };
         reader.readAsDataURL(file);
     }
-    updateAvatarPreview(imgData = this.settings.profile.avatar) { // Updates the avatar preview in the edit profile modal
+    updateAvatarPreview(imageData = this.settings.profile.avatar) { // Updates the avatar preview area
         const previewArea = document.getElementById('profile-avatar-preview-area');
-        const usernameInput = document.getElementById('profile-username-input'); // Get current name for fallback
         if (previewArea) {
-            previewArea.innerHTML = this.getAvatarHtml(imgData, usernameInput ? usernameInput.value : 'U');
+            previewArea.innerHTML = this.getAvatarHtml(imageData, document.getElementById('profile-username-input')?.value);
         }
     }
 
-    // --- Settings Panel ---
-    applySettings() { // Applies global settings (theme, font)
-        document.documentElement.setAttribute('data-theme', this.settings.theme);
+    // --- Settings Panel Logic ---
+    saveSettings() { // Saves current settings from UI controls
+        this.settings.theme = document.querySelector('.theme-option.active')?.dataset.theme || 'light';
+        const activeFont = document.querySelector('.font-option.active');
+        if (activeFont) this.settings.fontId = activeFont.dataset.fontId;
+        this.settings.timeFormat = document.querySelector('input[name="timeFormat"]:checked')?.value || 'relative';
+        this.settings.sortOrder = document.querySelector('input[name="sortOrder"]:checked')?.value || 'newest';
         
-        // Apply global font
-        const fontOption = document.querySelector(`.font-option[data-font-id="${this.settings.fontId}"]`);
-        const globalFont = fontOption ? fontOption.dataset.font : this.fontMap['sans-serif'].font; 
-        document.body.style.fontFamily = globalFont;
-        
-        // Update active state in UI
-        document.querySelectorAll('.font-option').forEach(el => el.classList.remove('active'));
-        if (fontOption) fontOption.classList.add('active');
-    }
-
-    selectTheme(themeEl) { // Handles theme selection
-        const theme = themeEl.dataset.theme;
-        document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
-        themeEl.classList.add('active');
-        document.documentElement.setAttribute('data-theme', theme);
-    }
-
-    handleFontSelection(fontEl) { // Handles global font selection click
-        fontEl.classList.add('active'); // Mark the selected font
-        const fontId = fontEl.dataset.fontId;
-        const fontValue = fontEl.dataset.font;
-        document.body.style.fontFamily = fontValue; // Apply font to the body
-        this.settings.fontId = fontId; // Update the setting state
-        
-         // Ensure others are inactive
-         document.querySelectorAll('.font-option').forEach(el => {
-            if (el !== fontEl) el.classList.remove('active');
-         });
+        this.saveData();
+        this.applySettings(); // Apply changes visually
+        this.renderEntries(); // Re-render entries if sorting/formatting changed
+        this.showToast('Settings saved');
+        this.closeModal('settings-modal'); 
     }
     
-    // --- Font Management ---
-    loadCustomFonts() { // Loads custom fonts into the settings UI list and adds <link> tags if needed
-        const customList = document.getElementById('custom-font-list');
-        if (!customList) return; // Safety check
-        customList.innerHTML = ''; // Clear existing list
+    selectTheme(theme) { // Handles theme selection click
+        document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
+        document.querySelector(`.theme-option[data-theme="${theme}"]`).classList.add('active');
+        document.documentElement.setAttribute('data-theme', theme);
+    }
+    
+    handleFontSelection(event) { // Handles global font selection click
+        const fontOption = event.target.closest('.font-option');
+        if (fontOption) this.selectFont(fontOption);
+    }
+
+    selectFont(fontEl) { // Manually sets active state and applies font to body
+        document.querySelectorAll('.font-option').forEach(el => el.classList.remove('active'));
+        fontEl.classList.add('active');
+        const fontId = fontEl.dataset.fontId;
         
-        const fragment = document.createDocumentFragment();
+        let fontFamilyToApply = this.fontMap[fontId]; // Use preset if available
+        // If it's a custom font, construct the family string
+        if (fontId.startsWith('custom-')) {
+            const index = parseInt(fontId.split('-')[1], 10);
+            const customFont = this.settings.customFonts[index];
+            if (customFont) {
+                fontFamilyToApply = `'${customFont.family}', sans-serif`; // Use parsed family
+            }
+        }
+        document.body.style.fontFamily = fontFamilyToApply; // Apply font to body
+    }
+    
+    applySettings() { // Applies theme and global font settings from 'this.settings'
+        document.documentElement.setAttribute('data-theme', this.settings.theme);
+        
+        // Construct a temporary map including custom fonts for lookup
+        const tempFontMap = { ...this.fontMap };
+         this.settings.customFonts.forEach((font, index) => {
+            tempFontMap[`custom-${index}`] = `'${font.family}', sans-serif`;
+        });
+        // Get the font family string for the currently selected fontId
+        const fontToApply = tempFontMap[this.settings.fontId] || this.fontMap['sans-serif']; // Fallback to sans-serif
+        if (document.body.style.fontFamily !== fontToApply) { // Apply only if different
+            document.body.style.fontFamily = fontToApply;
+        }
+    }
+
+    // --- Font Management ---
+    loadCustomFonts() { // Loads custom fonts into the UI list and <head>
+        document.querySelectorAll('link[data-custom-font]').forEach(link => link.remove()); // Remove previous custom font links
+        
+        const customList = document.getElementById('custom-font-list');
+        if (!customList) return; // Exit if element not found
+        customList.innerHTML = ''; // Clear current list
+        
+        const fragmentOptions = document.createDocumentFragment();
+        const fragmentList = document.createDocumentFragment();
 
         this.settings.customFonts.forEach((font, index) => {
-            const listItem = document.createElement('li');
-            listItem.innerHTML = `
-                <span>${font.name || font.family}</span>
-                <button class="delete-font-btn" data-index="${index}" title="Delete Font">&times;</button>
-            `;
-            fragment.appendChild(listItem);
+            // Add Font Option to Settings Panel
+            const fontId = `custom-${index}`;
+            const fontOption = document.createElement('div');
+            fontOption.className = 'font-option custom-font-option';
+            fontOption.dataset.fontId = fontId;
+            // Applying font directly for preview, fallback sans-serif if parsed family is missing
+            const previewFontFamily = font.family ? `'${font.family}', sans-serif` : "var(--font-sans)";
+            fontOption.innerHTML = `<div class="font-preview" style="font-family: ${previewFontFamily};">Aa 你好</div><span>${font.name}</span><small>自定义</small>`;
+            fragmentOptions.appendChild(fontOption);
             
-            // Dynamically load font CSS if not already present
+            // Add Font to Custom Font List in Settings
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `<span>${font.name}</span> <button class="delete-font-btn" data-index="${index}">&times;</button>`;
+            fragmentList.appendChild(listItem);
+            
+            // Load font CSS if not already loaded
             if (font.url && !this.isFontAlreadyLoaded(font.url)) {
-               const link = document.createElement('link');
+                const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.href = font.url;
                 link.dataset.customFont = "true"; // Mark as custom font
                 document.head.appendChild(link);
             }
         });
-        customList.appendChild(fragment);
-        this.areFontsRendered = false; // Mark that font options need re-rendering
+        document.getElementById('font-options-container').appendChild(fragmentOptions); // Append to global options
+        customList.appendChild(fragmentList); // Append to custom list
+        this.areFontsRendered = false; // Mark that options need re-render
     }
 
-    isFontAlreadyLoaded(url) { // Checks if a font CSS is already linked in the document's head
+    isFontAlreadyLoaded(url) { // Checks if a font CSS link already exists
         return Array.from(document.head.querySelectorAll('link[rel="stylesheet"][data-custom-font="true"]'))
             .some(link => link.href === url);
     }
 
-    async parseFontInfo(url, userGivenName) { // Parses font family name and CSS from a URL or Data URL
+    async parseFontInfo(url, userGivenName) { // Parses font {name, family, url} from CSS
         if (!url) throw new Error('URL cannot be empty');
         try { new URL(url); } catch (_) { if (!url.startsWith('data:')) throw new Error('Invalid URL'); }
     
@@ -491,31 +521,32 @@ class SimpleDiaryApp {
             cssText = await res.text();
         }
         
-        // Extract font-family value using regex
         const match = cssText.match(/font-family\s*:\s*['"]?([^;'"]+)['"]?/);
         if (!match || !match[1]) {
             throw new Error('Could not find font-family in CSS');
         }
         const family = match[1].trim();
-        // Determine a usable name: prefer user-given, else derive from family
+        // Decide on the font name: prefer user's input, fallback to parsed family
         const simpleName = userGivenName || family.split(',')[0].replace(/['"]/g, '').trim();
         return { name: simpleName, family: family, url: url };
     }
 
-    async addCustomFont() { // Adds a new font from user input (URL)
+    async addCustomFont() { // Adds new custom font from user input
         const nameInput = document.getElementById('custom-font-name-input');
         const urlInput = document.getElementById('custom-font-url-input');
         const addBtn = document.getElementById('add-custom-font-btn');
-        const name = nameInput.value.trim().replace(/^['"]|['"]$/g, '');
+    
+        let userGivenName = nameInput.value.trim().replace(/^['"]|['"]$/g, '');
         const url = urlInput.value.trim();
         if (!url) { this.showToast('Font URL cannot be empty', 'error'); return; }
-
+        try { new URL(url); } catch (_) { if (!url.startsWith('data:')) { this.showToast('Please enter a valid URL', 'error'); return; } }
+    
         addBtn.disabled = true; addBtn.textContent = 'Parsing...';
         try {
-            const fontInfo = await this.parseFontInfo(url, name);
-            this.settings.customFonts.push(fontInfo); // Add to settings array
+            const fontInfo = await this.parseFontInfo(url, userGivenName);
+            this.settings.customFonts.push(fontInfo);
             this.saveData();
-            this.loadCustomFonts(); // Refresh the list UI
+            this.loadCustomFonts(); // Update UI list and load font
             this.renderFontOptions(); // Re-render global font options
             this.showToast(`Font "${fontInfo.name}" added`);
             nameInput.value = ''; urlInput.value = ''; // Clear inputs
@@ -526,35 +557,35 @@ class SimpleDiaryApp {
         }
     }
 
-    deleteCustomFont(index) { // Deletes a custom font from the list
+    deleteCustomFont(index) { // Deletes a custom font from settings
         const font = this.settings.customFonts[index];
         if (confirm(`Are you sure you want to delete the custom font "${font.name}"?`)) {
-            this.settings.customFonts.splice(index, 1); // Remove from settings array
-            // If the deleted font was selected globally, reset the global font setting
-            if (this.settings.fontId.startsWith('custom-')) {
-                const deletedCustomIndex = parseInt(this.settings.fontId.split('-')[1], 10);
-                if (deletedCustomIndex === index) {
-                    this.settings.fontId = 'sans-serif'; // Reset to default
-                } else if (deletedCustomIndex > index) {
-                    // Adjust index if font was before the deleted one
-                    this.settings.fontId = `custom-${deletedCustomIndex - 1}`; 
+            const deletedFontId = `custom-${index}`;
+            this.settings.customFonts.splice(index, 1);
+            // If the deleted font was the currently selected global font, reset
+            if (this.settings.fontId === deletedFontId) {
+                this.settings.fontId = 'sans-serif'; // Reset to default
+            } else if (this.settings.fontId.startsWith('custom-')) {
+                const currentCustomIndex = parseInt(this.settings.fontId.split('-')[1], 10);
+                if (currentCustomIndex > index) { // Adjust index if font was after the deleted one
+                    this.settings.fontId = `custom-${currentCustomIndex - 1}`;
                 }
             }
             this.saveData();
             this.loadCustomFonts(); // Update UI list
-            this.renderFontOptions(); // Re-render options to update active state etc.
-            this.applySettings(); // Re-apply global font settings to ensure consistency
+            this.renderFontOptions(); // Re-render global options
+            this.applySettings(); // Re-apply global font settings
             this.showToast(`Font "${font.name}" deleted`, 'info');
         }
     }
     
-    // Checks if the URL for a book font has changed compared to settings
+    // Checks if book font URL has changed
     isBookFontUrlChanged(newUrl, type) { 
         const currentUrl = this.settings.bookFont[type === 'zh' ? 'chinese' : 'english'].url;
         return newUrl && newUrl !== currentUrl;
     }
 
-    async updateBookFont() { // Updates the default fonts for the 3D diary book
+    async updateBookFont() { // Sets the default Chinese and English fonts for the 3D book
         if (this.isFetching) return;
         this.isFetching = true;
         const zhNameInput = document.getElementById('book-font-zh-name-input');
@@ -570,30 +601,30 @@ class SimpleDiaryApp {
 
         addBtn.disabled = true; addBtn.textContent = 'Applying...';
         
-        // Helper to update a specific font setting (Chinese or English)
+        // Helper to update either Chinese or English font setting
         const updateFontSetting = async (type, name, url) => {
             let currentFont = this.settings.bookFont[type];
             const urlChanged = this.isBookFontUrlChanged(url, type);
             
-            if (!url) { // If URL is cleared, reset the font setting for this type
+            if (!url) { // If URL is cleared, reset the font
                 currentFont = { name: '', family: '', url: '' };
-            } else if (urlChanged) { // If URL changed, parse the new font info
+            } else if (urlChanged) { // If URL changed, parse new font info
                 const fontInfo = await this.parseFontInfo(url, name);
                 currentFont = fontInfo;
-            } else if (name) { // If URL is the same but name changed
-                currentFont.name = name || currentFont.family; // Update name if provided
+            } else if (name) { // If URL same but name changed
+                currentFont.name = name || currentFont.family;
             }
-            this.settings.bookFont[type] = currentFont; // Update the settings object
+            this.settings.bookFont[type] = currentFont; // Update settings obj
         };
 
         try {
-            // Concurrently update Chinese and English font settings
+            // Update both fonts concurrently
             await Promise.all([
                 updateFontSetting('chinese', zhName, zhUrl),
                 updateFontSetting('english', enName, enUrl)
             ]);
-            this.saveData(); // Save new settings
-            this.applyBookFonts(); // Apply the updated fonts visually
+            this.saveData();
+            this.applyBookFonts(); // Apply changes to CSS variables and load fonts
             this.showToast('Book fonts updated');
         } catch (error) {
             this.showToast(`Failed to set book fonts: ${error.message}`, 'error');
@@ -603,16 +634,15 @@ class SimpleDiaryApp {
         }
     }
 
-    applyBookFonts() { // Applies the configured book fonts to CSS variables and loads font files
+    applyBookFonts() { // Applies configured book fonts to CSS variables & loads font CSS
         const applyType = (type, fontSetting) => {
-            // Determine the CSS variable name ('--book-font-zh' or '--book-font-en')
             const cssVarName = type === 'chinese' ? '--book-font-zh' : '--book-font-en';
-            if (fontSetting && fontSetting.family) { // If font details are available
-                document.documentElement.style.setProperty(cssVarName, `'${fontSetting.family}', sans-serif`); // Set CSS variable
-                 // Load the font CSS if not already loaded
+            if (fontSetting && fontSetting.family) { // If font details exist
+                document.documentElement.style.setProperty(cssVarName, `'${fontSetting.family}', sans-serif`);
+                 // Load font CSS if URL exists and isn't already loaded
                 if (fontSetting.url && !this.isFontAlreadyLoadedForBook(fontSetting.url)) {
                     const style = document.createElement('style');
-                    style.dataset.bookFont = type; // Mark this style element
+                    style.dataset.bookFont = type; // Mark the style element
                     if (fontSetting.url.startsWith('data:') && fontSetting.url.includes(',')) { // Data URL
                         const decodedCss = decodeURIComponent(fontSetting.url.substring(fontSetting.url.indexOf(',') + 1));
                         style.textContent = decodedCss;
@@ -622,71 +652,54 @@ class SimpleDiaryApp {
                     document.head.appendChild(style);
                 }
             } else {
-                document.documentElement.style.removeProperty(cssVarName); // Reset to default if no font is set
+                document.documentElement.style.removeProperty(cssVarName); // Reset if no font set
             }
         };
         
-        applyType('chinese', this.settings.bookFont?.chinese); // Apply Chinese font
-        applyType('english', this.settings.bookFont?.english); // Apply English font
+        applyType('chinese', this.settings.bookFont?.chinese);
+        applyType('english', this.settings.bookFont?.english);
 
-        // If book is currently open, force a visual refresh of the pages
+        // If book is open, force a visual refresh
         if (this.isBookOpen) {
-            // Clear inline style to make CSS variables effective
-             document.querySelectorAll('.book-page .page-content').forEach(el => {
-                el.style.fontFamily = ''; 
-             });
-            // Force repaint by accessing a DOM property
-            document.querySelector('.book-pages').clientHeight;
+            document.querySelectorAll('.book-page .page-content').forEach(el => el.style.fontFamily = ''); // Clear inline style
+            document.querySelector('.book-pages').clientHeight; // Force repaint
         }
     }
     
-    isFontAlreadyLoadedForBook(url) { // Helper to check if book font CSS is already loaded
+    isFontAlreadyLoadedForBook(url) { // Helper to check if book font CSS is loaded
          return Array.from(document.head.querySelectorAll('style[data-book-font]'))
             .some(style => { const content = style.textContent || ''; return content.includes(url); });
     }
 
-    renderFontOptions() { // Renders the global font options in the settings panel
+    renderFontOptions() { // Renders global font options in settings panel
         const container = document.getElementById('font-options-container');
         if (!container) return;
-        container.innerHTML = ''; // Clear previous options
+        container.innerHTML = '';
         
         const fragment = document.createDocumentFragment();
-
-        // Helper function to create a font option element
-        const addFontOption = (id, config) => {
+        const addFontOption = (id, config) => { // Helper to create a font option element
             const option = document.createElement('div');
-            // Assign class based on font type for preview styling
             option.className = `font-option ${id === 'serif' ? 'font-serif' : (id === 'handwritten' ? 'font-handwritten' : 'font-sans')}`;
-            option.dataset.fontId = id; // Store the ID for selection
-            option.dataset.font = config.font; // Store the actual font-family value
-            option.innerHTML = `
-                <div class="font-preview">${config.previews?.aa || 'Aa 你好'}</div>
-                <span>${config.name}</span>
-                <small>${config.description || ''}</small>
-            `;
-            // Mark the currently active font
-            if (id === this.settings.fontId) option.classList.add('active');
+            option.dataset.fontId = id; 
+            option.dataset.font = config.font; // Store actual font-family string
+            option.innerHTML = `<div class="font-preview">${config.previews?.aa || 'Aa 你好'}</div><span>${config.name}</span><small>${config.description || ''}</small>`;
+            if (id === this.settings.fontId) option.classList.add('active'); // Highlight active font
             fragment.appendChild(option);
         };
 
-        // Add preset fonts (excluding handwritten now)
+        // Add preset global fonts (NOT including handwritten)
         addFontOption('sans-serif', this.fontMap['sans-serif']);
         addFontOption('serif', this.fontMap['serif']);
-        // addFontOption('handwritten', this.fontMap['handwritten']); // <-- Excluded as requested
         
         // Add custom fonts from settings
         this.settings.customFonts.forEach((font, index) => {
             const customId = `custom-${index}`;
             const option = document.createElement('div');
-            // Use specific class for custom font preview styling if needed, or rely on inline style
-            option.className = 'font-option custom-font-option'; 
+            option.className = 'font-option custom-font-option';
             option.dataset.fontId = customId;
-            option.dataset.font = `'${font.family}', sans-serif`; // Use the parsed family name as fallback
-            option.innerHTML = `
-                <div class="font-preview" style="font-family: '${font.family}', sans-serif;">Aa 你好</div>
-                <span>${font.name}<small>Custom</small></span>
-            `;
-            if (customId === this.settings.fontId) option.classList.add('active'); // Mark custom font if selected
+            const previewFontFamily = font.family ? `'${font.family}', sans-serif` : "var(--font-sans)"; // Use parsed family for preview style
+            option.innerHTML = `<div class="font-preview" style="font-family: ${previewFontFamily};">Aa 你好</div><span>${font.name}<small>自定义</small></span>`;
+            if (customId === this.settings.fontId) option.classList.add('active'); // Mark if this custom font is selected
             fragment.appendChild(option);
         });
 
@@ -700,7 +713,7 @@ class SimpleDiaryApp {
         if (!id) return;
         const modal = document.getElementById(id);
         if (modal) modal.classList.remove('active'); 
-        // Perform cleanup actions for specific modals upon closing
+        // Cleanup actions upon closing specific modals
         if (id === 'settings-modal') this.closeSettingsModal(); 
         if (id === 'confirmation-modal') this.currentDeletingEntryId = null;
         if (id === 'clear-data-modal') { // Reset clear data modal state
@@ -709,7 +722,7 @@ class SimpleDiaryApp {
         }
     }
 
-    openEntryForm(entryId = null) { // Opens the form for writing or editing a diary entry
+    openEntryForm(entryId = null) { // Opens form for writing/editing an entry
         const isEdit = entryId !== null;
         const modalTitle = document.getElementById('entry-form-title');
         const tagsInputContainer = document.getElementById('tags-input-container');
@@ -723,7 +736,7 @@ class SimpleDiaryApp {
         tagsInput.value = entry && entry.tags ? entry.tags.join(', ') : '';
         editingEntryIdInput.value = entryId || '';
         
-        // Show tags input only if editing and entry has tags
+        // Show tags input only if editing an entry that has tags
         tagsInputContainer.classList.toggle('hidden', !isEdit || !entry?.tags?.length); 
         this.showModal('entry-form-modal');
     }
@@ -732,7 +745,7 @@ class SimpleDiaryApp {
     openProfileModal() { this.showModal('profile-modal'); }
     closeProfileModal() { this.closeModal('profile-modal'); }
     
-    openEditProfileModal() { // Opens the modal to edit user profile
+    openEditProfileModal() { // Opens profile editing modal
         document.getElementById('profile-username-input').value = this.settings.profile.name;
         document.getElementById('profile-signature-input').value = this.settings.profile.signature;
         this.updateAvatarPreview(); // Initialize preview
@@ -740,13 +753,13 @@ class SimpleDiaryApp {
     }
     closeEditProfileModal() { this.closeModal('edit-profile-modal'); }
 
-    openSettingsModal() { // Opens the settings modal and populates it with current settings
-        if (!this.areFontsRendered) this.renderFontOptions(); // Render global font options if not already done
+    openSettingsModal() { // Opens settings modal and populates UI with current settings
+        if (!this.areFontsRendered) this.renderFontOptions(); // Render global fonts if not done yet
         
-        // Apply current settings to UI controls
-        this.selectTheme(document.querySelector(`.theme-option[data-theme="${this.settings.theme}"]`));
+        // Apply current settings to UI elements
+        this.selectTheme(this.settings.theme);
         const fontOption = document.querySelector(`.font-option[data-font-id="${this.settings.fontId}"]`);
-        if (fontOption) this.handleFontSelection(fontOption); // Highlight active global font
+        if (fontOption) this.selectFont(fontOption); // Highlight active global font
         document.querySelector(`input[name="timeFormat"][value="${this.settings.timeFormat}"]`).checked = true;
         document.querySelector(`input[name="sortOrder"][value="${this.settings.sortOrder}"]`).checked = true;
 
@@ -764,66 +777,65 @@ class SimpleDiaryApp {
         this.closeModal('settings-modal'); 
     }
     
-    closeConfirmationModal() { this.closeModal('confirmation-modal'); this.currentDeletingEntryId = null; }
-    openClearDataModal() { this.showModal('clear-data-modal'); document.getElementById('clear-data-confirm-input').value = ''; document.getElementById('confirm-clear-data-btn').disabled = true; } // Resets the confirmation input
+    closeConfirmationModal() { this.closeModal('confirmation-modal'); }
+    openClearDataModal() { this.showModal('clear-data-modal'); document.getElementById('clear-data-confirm-input').value = ''; document.getElementById('confirm-clear-data-btn').disabled = true; } // Reset input on open
     closeClearDataModal() { this.closeModal('clear-data-modal'); }
     
     // --- Utility Functions ---
-    handleSearch() { // Handles search input filtering entries with debouncing
+    handleSearch() { // Debounced search handler
         clearTimeout(this.searchDebounceTimer);
         this.searchDebounceTimer = setTimeout(() => {
             const query = document.getElementById('search-input').value.trim();
             this.renderEntries(query);
             document.getElementById('clear-search-btn').classList.toggle('hidden', query.length === 0);
-        }, 300); // Delay search execution by 300ms
+        }, 300);
     }
-    clearSearch() { // Clears the search input and resets the entries view
+    clearSearch() { // Clears search input and triggers re-render
         document.getElementById('search-input').value = '';
         this.handleSearch();
     }
     generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); } // Generates a unique ID
-    showToast(message, type = 'success') { // Displays a temporary message at the bottom
+    showToast(message, type = 'success') { // Displays temporary toast messages
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;
         container.appendChild(toast);
-        setTimeout(() => toast.classList.add('show'), 10); // Trigger fade-in animation
-        setTimeout(() => { // Remove toast after animation and delay
+        setTimeout(() => toast.classList.add('show'), 10); // Fade in
+        setTimeout(() => { // Fade out and remove
             toast.classList.remove('show');
-            setTimeout(() => container.removeChild(toast), 300); // Fade-out duration
-        }, 3000); // Toast visible for 3 seconds
+            setTimeout(() => container.removeChild(toast), 300);
+        }, 3000);
     }
-    formatContent(content) { // Basic formatting for diary content (newlines to <br>, paragraphs)
+    formatContent(content) { // Basic content formatting (newlines to <p>, <br>)
         if (!content) return '';
         return `<p>${content.replace(/\n\s*\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
     }
-    getAvatarHtml(avatarSource, name) { // Returns HTML for avatar (image or initials)
+    getAvatarHtml(avatarSource, name) { // Returns avatar HTML (img or initials)
         if (avatarSource && avatarSource.startsWith('data:image')) {
-            return `<img src="${avatarSource}" alt="avatar">`; // Use provided image URL
+            return `<img src="${avatarSource}" alt="avatar">`;
         }
-        // Fallback to initials
         const text = (name ?.charAt(0) || '?').toUpperCase();
-        if (text === '?') { // Default icon if name is unavailable
-            return '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+        if (text === '?') { // Default icon if name unavailable
+            return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
         }
-        return text; // Return initials
+        return text; // Initials
     }
-    getFormattedTime(dateString, format = 'relative') { // Formats date/time based on settings
+    getFormattedTime(dateString, format = 'relative') { // Formats date/time based on timeFormat setting
         const now = new Date();
         const date = new Date(dateString);
         const diffInSeconds = (now - date) / 1000;
 
-        switch(format){
-            case 'full': return date.toLocaleString(); // Full locale string
-            case 'short': { // Short format like MM-DD HH:MM
+        switch(this.settings.timeFormat){
+            case 'full': return date.toLocaleString();
+            case 'short': {
                 const month = (date.getMonth() + 1).toString().padStart(2,'0');
                 const day = date.getDate().toString().padStart(2,'0');
                 const hours = date.getHours().toString().padStart(2,'0');
                 const mins = date.getMinutes().toString().padStart(2,'0');
                 return `${month}-${day} ${hours}:${mins}`;
             }
-            default: // relative time (e.g., "5 minutes ago")
+            default: // relative time
                 if (diffInSeconds < 60) return "Just now";
                 if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
                 if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
@@ -831,22 +843,22 @@ class SimpleDiaryApp {
                 return date.toLocaleDateString(); // Fallback for older dates
         }
     }
-    handleScroll() { // Controls visibility of the "scroll to top" button
+    handleScroll() { // Controls visibility of scroll-to-top button
         const btn = document.getElementById('scroll-to-top-btn');
         if (window.scrollY > 300) btn.classList.add('show');
         else btn.classList.remove('show');
     }
-    scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); } // Scrolls page smoothly to the top
-    checkClearDataInput(input) { // Enables/disables the clear data button based on input
-        document.getElementById('confirm-clear-data-btn').disabled = input.value.trim() !== 'DELETE';
+    scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); } // Smooth scroll to top
+    checkClearDataInput(input) { // Enables confirm button if input is 'DELETE'
+        document.getElementById('confirm-clear-data-btn').disabled = input.value !== 'DELETE';
     }
-    confirmClearAllData() { // Clears all local data and reloads the page
-        if (document.getElementById('clear-data-confirm-input').value.trim() === 'DELETE') {
+    confirmClearAllData() { // Clears all data and reloads
+        if (document.getElementById('clear-data-confirm-input').value === 'DELETE') {
             localStorage.removeItem('diaryAppData');
-            window.location.reload(); // Reset the application
+            window.location.reload(); 
         }
     }
-    exportData() { // Exports diary data and settings as a JSON file
+    exportData() { // Exports data as JSON file
         const dataStr = JSON.stringify({ entries: this.entries, settings: this.settings }, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -854,9 +866,9 @@ class SimpleDiaryApp {
         a.href = url;
         a.download = `diary_backup_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
-        URL.revokeObjectURL(url); // Clean up memory
+        URL.revokeObjectURL(a.href); // Clean up URL object
     }
-    importData(event) { // Imports data from a JSON file
+    importData(event) { // Imports data from JSON file
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
@@ -865,7 +877,7 @@ class SimpleDiaryApp {
                 const data = JSON.parse(e.target.result);
                 if (confirm('Importing data will overwrite existing content. Continue?')) {
                     this.entries = data.entries || [];
-                    // Merge settings carefully to maintain defaults and apply imported ones
+                    // Merge settings carefully to ensure compatibility
                     this.settings = this.mergeDeep(
                         JSON.parse(JSON.stringify(this.constructor.defaultSettings)), 
                         data.settings || {}
@@ -879,23 +891,21 @@ class SimpleDiaryApp {
             }
         };
         reader.readAsText(file);
-        event.target.value = null; // Reset file input for re-uploading the same file
+        event.target.value = null; // Reset file input for re-uploading
     }
-    mergeDeep(target, ...sources) { // Deep object merging utility
+    mergeDeep(target, ...sources) { // Utility for deep object merging
         if (!sources.length) return target;
         const source = sources.shift();
         if (typeof target === 'object' && target !== null && typeof source === 'object' && source !== null) {
             for (const key in source) {
                 if (Object.prototype.hasOwnProperty.call(source, key)) {
                     if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
-                        // Recursively merge nested objects
                         if (!target[key] || typeof target[key] !== 'object') {
-                           Object.assign(target, { [key]: {} }); // Ensure target property is an object
+                           Object.assign(target, { [key]: {} }); // Ensure nested object exists
                         }
-                        this.mergeDeep(target[key], source[key]);
+                        this.mergeDeep(target[key], source[key]); // Recurse
                     } else {
-                        // Assign primitive values or arrays
-                        Object.assign(target, { [key]: source[key] });
+                        Object.assign(target, { [key]: source[key] }); // Copy value
                     }
                 }
             }
@@ -909,16 +919,15 @@ class SimpleDiaryApp {
         if (!id) return;
         const modal = document.getElementById(id);
         if (modal) modal.classList.remove('active'); 
-        
-        // Cleanup actions upon closing specific modals
+        // Cleanup actions on closing modal
         if (id === 'settings-modal') this.closeSettingsModal(); 
         if (id === 'confirmation-modal') this.currentDeletingEntryId = null;
-        if (id === 'clear-data-modal') { // Reset state for clear data modal
+        if (id === 'clear-data-modal') { // Reset clear data modal state
             document.getElementById('clear-data-confirm-input').value = '';
             document.getElementById('confirm-clear-data-btn').disabled = true;
         }
     }
-    switchSettingsTab(tabElement) { // Switches active tab in settings panel
+    switchSettingsTab(tabElement) { // Switches active tab in settings panels
         document.querySelectorAll('#settings-nav-list li').forEach(li => li.classList.remove('active'));
         tabElement.classList.add('active');
         document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
@@ -926,7 +935,6 @@ class SimpleDiaryApp {
     }
 }
 
-// Initialize the application when the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.diaryApp = new SimpleDiaryApp();
 });
