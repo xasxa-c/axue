@@ -682,4 +682,160 @@ class SimpleDiaryApp {
         document.getElementById('profile-username-input').value = this.settings.profile.name;
         document.getElementById('profile-signature-input').value = this.settings.profile.signature;
         this.updateAvatarPreview();
-        this.openModal('edit-profile-modal
+        this.openModal('edit-profile-modal');
+    }
+    closeEditProfileModal() { this.closeModal('edit-profile-modal'); }
+
+    openSettingsModal() { 
+        if (!this.areFontsRendered) this.renderFontOptions();
+        
+        this.selectTheme(this.settings.theme); 
+        const fontOption = document.querySelector(`.font-option[data-font-id="${this.settings.fontId}"]`);
+        if (fontOption) this.selectFont(fontOption);
+        
+        // 回填显示偏好
+        const displayPanel = document.getElementById('panel-display');
+        if (displayPanel) {
+            displayPanel.querySelector(`input[name="timeFormat"][value="${this.settings.timeFormat}"]`).checked = true;
+            displayPanel.querySelector(`input[name="sortOrder"][value="${this.settings.sortOrder}"]`).checked = true;
+        }
+
+        // 回填日记本字体链接
+        document.getElementById('book-font-zh-url-input').value = this.settings.bookFont.chinese.url;
+        document.getElementById('book-font-en-url-input').value = this.settings.bookFont.english.url;
+        
+        this.openModal('settings-modal'); 
+    }
+    closeSettingsModal() { 
+        this.applySettings();
+        this.closeModal('settings-modal'); 
+    }
+    
+    closeConfirmationModal() { this.closeModal('confirmation-modal'); }
+    openClearDataModal() { this.openModal('clear-data-modal'); }
+    closeClearDataModal() { this.closeModal('clear-data-modal'); }
+    closeWelcomeModal() { this.closeModal('welcome-modal'); localStorage.setItem('diaryAppVisited', 'true'); }
+    
+    toggleTagsInput() { document.getElementById('tags-input-container').classList.toggle('hidden'); }
+    switchSettingsTab(tabElement) {
+        document.querySelectorAll('#settings-nav-list li').forEach(li => li.classList.remove('active'));
+        tabElement.classList.add('active');
+        document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(tabElement.dataset.target)?.classList.add('active');
+    }
+
+    // --- 9. 辅助函数 ---
+    handleSearch() {
+        clearTimeout(this.searchDebounceTimer);
+        this.searchDebounceTimer = setTimeout(() => {
+            const input = document.getElementById('search-input');
+            const query = input.value.trim();
+            this.renderEntries(query);
+            document.getElementById('clear-search-btn').classList.toggle('hidden', query.length === 0);
+        }, 300);
+    }
+    clearSearch() {
+        document.getElementById('search-input').value = '';
+        this.handleSearch();
+    }
+    generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
+    showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => container.removeChild(toast), 300);
+        }, 3000);
+    }
+    formatContent(content) { return `<p>${content.replace(/\n\s*\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`; }
+    getAvatarHtml(avatarSource, name) {
+        if (avatarSource && avatarSource.startsWith('data:image')) {
+            return `<img src="${avatarSource}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
+        }
+        const text = (name?.charAt(0) || '?').toUpperCase();
+        if (text === '?') {
+            return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+        }
+        return text;
+    }
+    getFormattedTime(dateString, format = this.settings.timeFormat) {
+        const now = new Date();
+        const date = new Date(dateString);
+        switch(format){
+            case 'full': return date.toLocaleString();
+            case 'short': return `${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+            default:
+                const diff = (now - date) / 1000;
+                if (diff < 60) return "刚刚";
+                if (diff < 3600) return `${Math.floor(diff/60)}分钟前`;
+                if (diff < 86400) return `${Math.floor(diff/3600)}小时前`;
+                if (diff < 2592000) return `${Math.floor(diff/86400)}天前`;
+                return date.toLocaleDateString();
+        }
+    }
+    scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    checkClearDataInput(input) { document.getElementById('confirm-clear-data-btn').disabled = input.value !== 'DELETE'; }
+    confirmClearAllData() {
+        if (document.getElementById('clear-data-confirm-input').value === 'DELETE') {
+            localStorage.removeItem('diaryAppData');
+            window.location.reload();
+        }
+    }
+    exportData() {
+        const dataStr = JSON.stringify({ entries: this.entries, settings: this.settings }, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `diary_backup_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+    importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (confirm('导入数据将覆盖现有全部内容，确定吗？')) {
+                    this.entries = data.entries || [];
+                    this.settings = this.mergeDeep(
+                        JSON.parse(JSON.stringify(this.constructor.defaultSettings)),
+                        data.settings || {}
+                    );
+                    this.saveData();
+                    window.location.reload();
+                }
+            } catch(err) { this.showToast("文件格式错误", "error"); }
+        };
+        reader.readAsText(file);
+        event.target.value = null;
+    }
+    mergeDeep(target, ...sources) {
+        if (!sources.length) return target;
+        const source = sources.shift();
+        if (typeof target === 'object' && target !== null && typeof source === 'object' && source !== null) {
+            for (const key in source) {
+                if (Object.prototype.hasOwnProperty.call(source, key)) {
+                    if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
+                        if (!target[key] || typeof target[key] !== 'object') {
+                           Object.assign(target, { [key]: {} });
+                        }
+                        this.mergeDeep(target[key], source[key]);
+                    } else {
+                        Object.assign(target, { [key]: source[key] });
+                    }
+                }
+            }
+        }
+        return this.mergeDeep(target, ...sources);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.diaryApp = new SimpleDiaryApp();
+});
