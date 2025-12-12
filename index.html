@@ -104,6 +104,7 @@
                 </div>
                 <input type="hidden" id="editing-entry-id">
                 <div class="modal-actions">
+                    <button id="close-entry-form-btn" class="btn-secondary">取消</button>
                     <button id="save-entry-btn" class="btn-primary">发布</button>
                 </div>
             </div>
@@ -212,10 +213,10 @@
                             </div>
                         </div>
                         <!-- 字体设置面板 -->
-                        <div id="panel-font" class="settings-panel active"> <!-- Default active -->
+                        <div id="panel-font" class="settings-panel active">
                             <h3>全局字体</h3>
                             <div class="font-options" id="font-options-container">
-                                <!-- 字体选项由JS动态加载 -->
+                                <!-- Global font options rendered by JS -->
                             </div>
                             <hr>
                             <h3>3D日记本默认字体</h3>
@@ -270,6 +271,7 @@
                     </div>
                 </div>
                 <div class="modal-actions">
+                    <button id="close-settings-btn" class="btn-secondary">关闭</button>
                     <button id="save-settings-btn" class="btn-primary">保存设置</button>
                 </div>
             </div>
