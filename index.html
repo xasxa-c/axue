@@ -29,7 +29,7 @@
                     <span id="header-avatar-display" class="avatar"></span>
                 </button>
                 <button id="settings-btn" class="header-icon-btn" aria-label="应用设置">
-                    <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61-.25-1.17-.59-1.69-.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19-.15-.24-.42-.12-.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23-.09-.49 0 .61-.22l2-3.46c.12-.22-.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61-.25-1.17-.59-1.69-.98l-2.49-1c-.23-.09-.49 0-.61-.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19-.15-.24-.42-.12-.64l2 3.46c.12.22.39.3.61-.22l2.49-1c.52.4 1.08-.73 1.69-.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23-.09.49 0 .61-.22l2-3.46c.12-.22-.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
                 </button>
                 <button id="open-entry-form-btn" class="action-btn">写新日记</button>
             </div>
@@ -176,9 +176,7 @@
                             <h3>全局字体</h3>
                             <div class="settings-section">
                                 <p class="section-desc">选择应用界面的主要字体</p>
-                                <div class="font-options" id="font-options-container">
-                                    <!-- JS 动态填充全局字体 -->
-                                </div>
+                                <div class="font-options" id="font-options-container"></div>
                             </div>
                             <div class="settings-section">
                                 <h3>3D日记本字体</h3>
@@ -204,10 +202,19 @@
                             </div>
                         </div>
                         <div id="panel-display" class="settings-panel">
-                            <!-- ... 显示偏好内容 ... -->
+                            <h3>显示偏好</h3>
+                            <div class="settings-section">
+                                <div class="form-group"><label>时间显示格式</label><div class="radio-group"><label class="radio-label"><input type="radio" name="timeFormat" value="relative"><span class="radio-custom"></span>相对时间</label><label class="radio-label"><input type="radio" name="timeFormat" value="full"><span class="radio-custom"></span>完整时间</label><label class="radio-label"><input type="radio" name="timeFormat" value="short"><span class="radio-custom"></span>简短时间</label></div></div>
+                                <div class="form-group"><label>日记排序</label><div class="radio-group"><label class="radio-label"><input type="radio" name="sortOrder" value="newest"><span class="radio-custom"></span>最新在前</label><label class="radio-label"><input type="radio" name="sortOrder" value="oldest"><span class="radio-custom"></span>最早在前</label></div></div>
+                            </div>
                         </div>
                         <div id="panel-data" class="settings-panel">
-                            <!-- ... 数据管理内容 ... -->
+                            <h3>数据管理</h3>
+                            <div class="settings-section">
+                                <div class="data-action-card"><div class="data-action-info"><h4>导出数据</h4><p>将所有日记和设置导出为JSON文件。</p></div><button id="export-data-btn" class="btn-primary"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>导出</button></div>
+                                <div class="data-action-card"><div class="data-action-info"><h4>导入数据</h4><p>从JSON文件导入数据。这将覆盖现有数据！</p></div><button id="import-data-btn" class="btn-secondary"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>导入</button><input type="file" id="import-file-input" accept=".json" class="visually-hidden"></div>
+                                <div class="data-action-card danger"><div class="data-action-info"><h4>清除所有数据</h4><p>删除所有日记和设置，此操作不可撤销！</p></div><button id="clear-all-data-btn" class="btn-danger"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>清除</button></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -239,4 +246,4 @@
     
     <script src="script.js"></script>
 </body>
-                                                                                                        </html>
+</html>
